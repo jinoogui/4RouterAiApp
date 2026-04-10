@@ -25,7 +25,7 @@ const TOOLS = [
     {
         name: 'codex',
         package: '@openai/codex',
-        version: '0.100.0',
+        // version: '0.100.0', // pinned for debug — remove to use latest
         dir: join(TOOLS_DIR, 'codex'),
     },
 ];
