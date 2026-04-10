@@ -52,49 +52,84 @@
         <p class="welcome-subtitle">统一的 AI 编程助手，Claude Code 与 Codex 尽在指尖</p>
       </div>
 
-      <div class="setup-cards">
-        <!-- Claude Code -->
-        <div class="setup-card" data-provider="anthropic">
+      <!-- 第一阶段：选择配置方式 -->
+      <div id="setup-choice" class="setup-cards">
+        <!-- 自行配置 -->
+        <div class="setup-card setup-card-choice" id="card-manual-config">
           <div class="setup-card-header">
-            <span class="tool-icon">🟣</span>
-            <h3>Claude Code</h3>
-            <span class="setup-status" id="status-anthropic">未配置</span>
+            <span class="tool-icon">🔧</span>
+            <h3>自行配置</h3>
           </div>
-          <p>Anthropic 的 AI 编程助手</p>
-          <div class="api-key-input-group">
-            <input type="password" id="key-anthropic" placeholder="输入 ANTHROPIC_API_KEY" class="api-key-input"
-              autocomplete="off">
-            <button class="btn-toggle-visibility" data-target="key-anthropic" title="显示/隐藏">👁</button>
-          </div>
-          <div class="base-url-input-group">
-            <input type="text" id="baseurl-anthropic" placeholder="Base URL (默认: https://api.anthropic.com)"
-              class="text-input" autocomplete="off">
-          </div>
+          <p>我已有 API Key，手动输入配置</p>
+          <button id="btn-manual-config" class="btn-primary" style="width:100%;margin-top:12px;">开始配置</button>
         </div>
 
-        <!-- Codex -->
-        <div class="setup-card" data-provider="openai">
+        <!-- 4Router.net 一键配置 -->
+        <div class="setup-card setup-card-choice" data-provider="4router">
           <div class="setup-card-header">
-            <span class="tool-icon">🟢</span>
-            <h3>Codex CLI</h3>
-            <span class="setup-status" id="status-openai">未配置</span>
+            <span class="tool-icon">🔑</span>
+            <h3>4Router.net</h3>
           </div>
-          <p>OpenAI 的命令行编程代理</p>
-          <div class="api-key-input-group">
-            <input type="password" id="key-openai" placeholder="输入 OPENAI_API_KEY" class="api-key-input"
-              autocomplete="off">
-            <button class="btn-toggle-visibility" data-target="key-openai" title="显示/隐藏">👁</button>
-          </div>
-          <div class="base-url-input-group">
-            <input type="text" id="baseurl-openai" placeholder="Base URL (默认: https://api.openai.com/v1)"
-              class="text-input" autocomplete="off">
-          </div>
+          <p>登录 4Router 账号，自动同步 API 配置</p>
+          <button id="btn-login-4router" class="btn-primary" style="width:100%;margin-top:12px;">一键配置</button>
         </div>
       </div>
 
-      <div class="setup-actions">
-        <button id="btn-save-keys" class="btn-primary">保存并开始</button>
-        <button id="btn-skip-setup" class="btn-secondary">跳过设置</button>
+      <!-- 第二阶段：手动配置表单（默认隐藏） -->
+      <div id="setup-manual" class="hidden">
+        <div class="setup-cards">
+          <!-- Claude Code -->
+          <div class="setup-card" data-provider="anthropic">
+            <div class="setup-card-header">
+              <span class="tool-icon">🟣</span>
+              <h3>Claude Code</h3>
+              <span class="setup-status" id="status-anthropic">未配置</span>
+            </div>
+            <p>Anthropic 的 AI 编程助手</p>
+            <div class="api-key-input-group">
+              <input type="password" id="key-anthropic" placeholder="输入 ANTHROPIC_API_KEY" class="api-key-input"
+                autocomplete="off">
+              <button class="btn-toggle-visibility" data-target="key-anthropic" title="显示/隐藏">👁</button>
+            </div>
+            <div class="base-url-input-group">
+              <input type="text" id="baseurl-anthropic" placeholder="Base URL (默认: https://api.anthropic.com)"
+                class="text-input" autocomplete="off">
+            </div>
+          </div>
+
+          <!-- Codex -->
+          <div class="setup-card" data-provider="openai">
+            <div class="setup-card-header">
+              <span class="tool-icon">🟢</span>
+              <h3>Codex CLI</h3>
+              <span class="setup-status" id="status-openai">未配置</span>
+            </div>
+            <p>OpenAI 的命令行编程代理</p>
+            <div class="api-key-input-group">
+              <input type="password" id="key-openai" placeholder="输入 OPENAI_API_KEY" class="api-key-input"
+                autocomplete="off">
+              <button class="btn-toggle-visibility" data-target="key-openai" title="显示/隐藏">👁</button>
+            </div>
+            <div class="base-url-input-group">
+              <input type="text" id="baseurl-openai" placeholder="Base URL (默认: https://api.openai.com/v1)"
+                class="text-input" autocomplete="off">
+            </div>
+          </div>
+
+          <!-- 4Router.net 一键配置 -->
+          <div class="setup-card" data-provider="4router">
+            <div class="setup-card-header">
+              <span class="tool-icon">🔑</span>
+              <h3>4Router.net</h3>
+            </div>
+            <p>登录 4Router 账号，自动同步 API 配置</p>
+            <button id="btn-login-4router-manual" class="btn-primary" style="width:100%;margin-top:12px;">一键配置</button>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-save-keys" class="btn-primary">保存并开始</button>
+        </div>
       </div>
     </div>
   </div>
@@ -131,6 +166,10 @@
       </div>
 
       <div class="sidebar-bottom">
+        <button id="btn-open-website" class="sidebar-action-btn">
+          <span>🌐</span>
+          <span>官网</span>
+        </button>
         <button id="btn-check-update" class="sidebar-action-btn">
           <span>🔄</span>
           <span id="update-status-text">检查更新</span>

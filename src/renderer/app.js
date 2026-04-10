@@ -203,8 +203,16 @@ function shortenPath(/** @type {string} */ p) {
 
 // ===== Welcome Screen =====
 function setupWelcomeScreen() {
+    const setupChoice = /** @type {HTMLElement} */ ($('#setup-choice'));
+    const setupManual = /** @type {HTMLElement} */ ($('#setup-manual'));
+    const btnManual = /** @type {HTMLElement} */ ($('#btn-manual-config'));
     const btnSave = /** @type {HTMLElement} */ ($('#btn-save-keys'));
-    const btnSkip = /** @type {HTMLElement} */ ($('#btn-skip-setup'));
+
+    // 点击"自行配置" → 展开手动配置表单
+    btnManual?.addEventListener('click', () => {
+        setupChoice.classList.add('hidden');
+        setupManual.classList.remove('hidden');
+    });
 
     btnSave?.addEventListener('click', async () => {
         const anthropicKey = /** @type {HTMLInputElement} */ ($('#key-anthropic'))?.value?.trim();
@@ -232,10 +240,12 @@ function setupWelcomeScreen() {
         await refreshToolStatus();
     });
 
-    btnSkip?.addEventListener('click', async () => {
-        await api.config.set('firstLaunch', false);
-        showAppScreen();
-        await refreshToolStatus();
+    // 两处 4Router 登录按钮都打开 WebView 登录流程
+    $('#btn-login-4router')?.addEventListener('click', () => {
+        handle4RouterLogin();
+    });
+    $('#btn-login-4router-manual')?.addEventListener('click', () => {
+        handle4RouterLogin();
     });
 }
 
@@ -244,6 +254,53 @@ function updateSetupStatus(/** @type {string} */ provider, /** @type {boolean} *
     if (el) {
         el.textContent = configured ? '已配置 ✓' : '未配置';
         el.classList.toggle('configured', configured);
+    }
+}
+
+// ===== 4Router WebView Login Flow =====
+async function handle4RouterLogin() {
+    const btn1 = /** @type {HTMLButtonElement} */ ($('#btn-login-4router'));
+    const btn2 = /** @type {HTMLButtonElement} */ ($('#btn-login-4router-manual'));
+    const origText1 = btn1?.textContent;
+    const origText2 = btn2?.textContent;
+
+    try {
+        // Disable buttons and show progress
+        if (btn1) { btn1.textContent = '正在登录...'; btn1.disabled = true; }
+        if (btn2) { btn2.textContent = '正在登录...'; btn2.disabled = true; }
+
+        // Step 1: Open WebView login (AuthManager opens a child BrowserWindow)
+        const loginResult = await api.auth.loginWebView();
+
+        if (!loginResult.success) {
+            // User cancelled or login failed
+            if (loginResult.error !== '用户取消登录') {
+                alert(`登录失败: ${loginResult.error}`);
+            }
+            return;
+        }
+
+        // Step 2: Login succeeded, create API Keys
+        if (btn1) btn1.textContent = '正在配置 Key...';
+        if (btn2) btn2.textContent = '正在配置 Key...';
+
+        const provisionResult = await api.provision.createKeys();
+
+        if (!provisionResult.success) {
+            alert(`Key 创建失败: ${provisionResult.error}`);
+            return;
+        }
+
+        // Step 3: Configuration complete, enter main screen
+        await api.config.set('firstLaunch', false);
+        showAppScreen();
+        await refreshToolStatus();
+
+    } catch (err) {
+        alert(`操作失败: ${err}`);
+    } finally {
+        if (btn1) { btn1.textContent = origText1; btn1.disabled = false; }
+        if (btn2) { btn2.textContent = origText2; btn2.disabled = false; }
     }
 }
 
@@ -274,6 +331,10 @@ function setupSidebar() {
     });
 
     $('#btn-settings')?.addEventListener('click', () => openSettings());
+
+    $('#btn-open-website')?.addEventListener('click', () => {
+        window.open('https://4router.net');
+    });
 
     setupAppUpdateButton();
 

@@ -4,12 +4,16 @@ import { PtyManager } from './pty-manager';
 import { ToolManager } from './tool-manager';
 import { ConfigStore } from './config-store';
 import { AppUpdater } from './app-updater';
+import { AuthManager } from './auth-manager';
+import { KeyProvisioner } from './key-provisioner';
 
 let mainWindow: BrowserWindow | null = null;
 let ptyManager: PtyManager;
 let toolManager: ToolManager;
 let configStore: ConfigStore;
 let appUpdater: AppUpdater;
+let authManager: AuthManager;
+let keyProvisioner: KeyProvisioner;
 
 function getResourcesPath(): string {
     if (app.isPackaged) {
@@ -183,6 +187,40 @@ function setupIPC(): void {
         return { success: true };
     });
 
+    // ===== Auth (Module 1) =====
+    ipcMain.handle('auth:login-webview', async () => {
+        if (!mainWindow) return { success: false, error: '窗口未就绪' };
+        return authManager.loginViaWebView(mainWindow);
+    });
+
+    ipcMain.handle('auth:is-logged-in', () => {
+        return authManager.isLoggedIn();
+    });
+
+    ipcMain.handle('auth:logout', () => {
+        authManager.logout();
+    });
+
+    // ===== Key Provisioning (Module 2) =====
+    ipcMain.handle('provision:create-keys', async () => {
+        const accessToken = authManager.getAccessToken();
+        if (!accessToken) return { success: false, error: '未登录 4Router' };
+
+        const result = await keyProvisioner.provisionKeys(accessToken);
+        if (result.success) {
+            // Auto-configure API keys and base URLs in ConfigStore
+            if (result.claudeKey) {
+                configStore.setApiKey('anthropic', result.claudeKey);
+                configStore.setBaseUrl('anthropic', 'https://4router.net');
+            }
+            if (result.codexKey) {
+                configStore.setApiKey('openai', result.codexKey);
+                configStore.setBaseUrl('openai', 'https://4router.net/v1');
+            }
+        }
+        return result;
+    });
+
     // ===== Dialog =====
     ipcMain.handle('dialog:select-directory', async () => {
         const { dialog } = require('electron');
@@ -222,6 +260,8 @@ app.whenReady().then(() => {
     toolManager = new ToolManager(bundledToolsPath, configStore);
     ptyManager = new PtyManager(toolManager);
     appUpdater = new AppUpdater(configStore);
+    authManager = new AuthManager(configStore);
+    keyProvisioner = new KeyProvisioner();
 
     // Forward PTY data to renderer
     ptyManager.onData((sessionId: string, data: string) => {

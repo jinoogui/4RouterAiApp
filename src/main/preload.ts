@@ -71,6 +71,18 @@ contextBridge.exposeInMainWorld('routerAi', {
         applyRemoteConfig: (config: Record<string, any>) => ipcRenderer.invoke('app:apply-remote-config', config),
     },
 
+    // ===== Аuth =====
+    auth: {
+        loginWebView: () => ipcRenderer.invoke('auth:login-webview'),
+        isLoggedIn: () => ipcRenderer.invoke('auth:is-logged-in'),
+        logout: () => ipcRenderer.invoke('auth:logout'),
+    },
+
+    // ===== Key Provisioning =====
+    provision: {
+        createKeys: () => ipcRenderer.invoke('provision:create-keys'),
+    },
+
     // ===== Dialog =====
     dialog: {
         selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
