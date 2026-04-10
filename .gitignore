@@ -81,3 +81,7 @@ ehthumbs.db
 *.seed
 coverage/
 .nyc_output/
+
+# Claude Code 
+cc-recovered-main/
+

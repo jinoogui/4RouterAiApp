@@ -265,6 +265,35 @@ export class ToolManager {
                 console.log(`[ToolManager] Using Git Bash for Claude Code: ${gitBashPath}`);
             }
 
+            // Isolate bundled Claude Code config from any system-installed Claude Code.
+            // Source: cc/src/utils/envUtils.ts → CLAUDE_CONFIG_DIR overrides ~/.claude
+            // Source: cc/src/utils/env.ts:25  → .claude.json = join(CLAUDE_CONFIG_DIR, filename)
+            const appDataDir = path.join(
+                process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+                '4RouterAi'
+            );
+            const claudeConfigDir = path.join(appDataDir, '.claude');
+            fs.mkdirSync(claudeConfigDir, { recursive: true });
+            env['CLAUDE_CONFIG_DIR'] = claudeConfigDir;
+            console.log(`[ToolManager] Isolated CLAUDE_CONFIG_DIR: ${claudeConfigDir}`);
+
+            // Skip Claude Code's built-in onboarding — 4RouterAi's own welcome page replaces it.
+            // .claude.json lives INSIDE CLAUDE_CONFIG_DIR (see cc/src/utils/env.ts:24-25).
+            const claudeJsonPath = path.join(claudeConfigDir, '.claude.json');
+            try {
+                let claudeJson: any = {};
+                if (fs.existsSync(claudeJsonPath)) {
+                    claudeJson = JSON.parse(fs.readFileSync(claudeJsonPath, 'utf-8'));
+                }
+                if (!claudeJson.hasCompletedOnboarding) {
+                    claudeJson.hasCompletedOnboarding = true;
+                    fs.writeFileSync(claudeJsonPath, JSON.stringify(claudeJson, null, 2), 'utf-8');
+                    console.log(`[ToolManager] Marked onboarding complete: ${claudeJsonPath}`);
+                }
+            } catch (e) {
+                console.warn(`[ToolManager] Failed to update .claude.json:`, e);
+            }
+
             // Write settings JSON to a temp file to avoid shell escaping issues.
             // Passing JSON inline through PowerShell → cmd.exe → node.exe
             // mangles the string. A file path is always safe.
@@ -279,12 +308,7 @@ export class ToolManager {
                 settings['model'] = model;
             }
             if (Object.keys(settings.env).length > 0) {
-                const settingsDir = path.join(
-                    process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-                    '4RouterAi'
-                );
-                fs.mkdirSync(settingsDir, { recursive: true });
-                const settingsFile = path.join(settingsDir, 'claude-settings.json');
+                const settingsFile = path.join(appDataDir, 'claude-settings.json');
                 fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2), 'utf-8');
                 args.push('--settings', settingsFile);
                 console.log(`[ToolManager] Wrote Claude settings to ${settingsFile}`);
@@ -296,7 +320,7 @@ export class ToolManager {
                 args.push('-c', `model_provider="${providerName}"`);
                 args.push('-c', `model_providers.${providerName}.base_url="${baseUrl}"`);
                 args.push('-c', `model_providers.${providerName}.name="${providerName}"`);
-                args.push('-c', `model_providers.${providerName}.requires_openai_auth=true`);
+                args.push('-c', `model_providers.${providerName}.env_key="OPENAI_API_KEY"`);
                 args.push('-c', `model_providers.${providerName}.wire_api="responses"`);
             }
             // API key via env var (codex reads OPENAI_API_KEY from env)

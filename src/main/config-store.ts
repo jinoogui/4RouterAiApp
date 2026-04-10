@@ -16,7 +16,7 @@ interface ConfigSchema {
 }
 
 const defaults: ConfigSchema = {
-    theme: 'dark',
+    theme: 'light',
     defaultCwd: '',
     proxy: '',
     encryptedKeys: {},
