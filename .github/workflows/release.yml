@@ -46,6 +46,10 @@ jobs:
         with:
           node-version: 20
 
+      - name: Fix node-gyp distutils (Python 3.12+)
+        if: steps.check_tag.outputs.exists == 'false'
+        run: pip install setuptools
+
       - name: Install dependencies
         if: steps.check_tag.outputs.exists == 'false'
         run: npm install
