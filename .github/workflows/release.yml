@@ -70,11 +70,24 @@ jobs:
         if: steps.check_tag.outputs.exists == 'false'
         run: node scripts/bundle-tools.mjs
 
+      - name: Cache electron-builder binaries
+        if: steps.check_tag.outputs.exists == 'false'
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\electron-builder\Cache
+          key: electron-builder-cache-${{ runner.os }}-nsis
+
       - name: Package Windows installer
         if: steps.check_tag.outputs.exists == 'false'
-        run: npx electron-builder --win nsis --config.win.requestedExecutionLevel=asInvoker
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: npx electron-builder --win nsis --config.win.requestedExecutionLevel=asInvoker
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
 
       # ── Release ──
       - name: Create GitHub Release
