@@ -56,6 +56,19 @@
                 }
             ]
         },
+        "mac": {
+            "icon": "resources/icon.icns",
+            "category": "public.app-category.developer-tools",
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "arm64",
+                        "x64"
+                    ]
+                }
+            ]
+        },
         "nsis": {
             "oneClick": false,
             "allowToChangeInstallationDirectory": true,
