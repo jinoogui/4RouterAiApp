@@ -317,7 +317,7 @@ export class ToolManager {
         // Shared config root for all embedded tools.
         const appDataDir = path.join(
             process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-            '4RouterAi'
+            'TokenWave'
         );
 
         if (tool.id === 'claude-code') {

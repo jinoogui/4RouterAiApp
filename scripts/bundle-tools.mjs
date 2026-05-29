@@ -65,13 +65,21 @@ function bundleNodeRuntime() {
 
     const nodeExecutable = process.execPath;
     const nodeDir = dirname(nodeExecutable);
-    const npmDir = join(nodeDir, 'node_modules', 'npm');
+
+    // npm location differs by platform:
+    //   Windows: <nodeDir>/node_modules/npm           (alongside node.exe)
+    //   Unix:    <nodeDir>/../lib/node_modules/npm    (Homebrew/nvm/official tarball)
+    const npmCandidates = [
+        join(nodeDir, 'node_modules', 'npm'),
+        join(nodeDir, '..', 'lib', 'node_modules', 'npm'),
+    ];
+    const npmDir = npmCandidates.find(existsSync);
 
     if (!existsSync(nodeExecutable)) {
         throw new Error(`Node executable not found: ${nodeExecutable}`);
     }
-    if (!existsSync(npmDir)) {
-        throw new Error(`Bundled npm directory not found: ${npmDir}`);
+    if (!npmDir) {
+        throw new Error(`Bundled npm directory not found. Tried: ${npmCandidates.join(', ')}`);
     }
 
     cleanDir(RUNTIME_DIR);

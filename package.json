@@ -1,5 +1,5 @@
 {
-    "name": "4routerai",
+    "name": "tokenwave",
     "version": "1.1.7",
     "description": "All-in-one AI coding assistant — Claude Code & Codex in a single app",
     "engines": {
@@ -18,14 +18,16 @@
         "start": "electron .",
         "rebuild-pty": "electron-rebuild -f -w node-pty"
     },
-    "author": "4RouterAi",
+    "author": "TokenWave",
     "license": "MIT",
     "devDependencies": {
+        "@electron/rebuild": "^3.7.2",
         "@types/node": "^20.11.0",
         "concurrently": "^8.2.2",
-        "electron": "^33.0.0",
+        "electron": "^33.4.11",
         "electron-builder": "^25.1.0",
         "electron-rebuild": "^3.2.9",
+        "node-abi": "^4.31.0",
         "typescript": "^5.5.0",
         "vite": "^6.0.0"
     },
@@ -38,8 +40,8 @@
         "node-pty": "^1.0.0"
     },
     "build": {
-        "appId": "com.4routerai.app",
-        "productName": "4RouterAi",
+        "appId": "com.tokenwave.app",
+        "productName": "TokenWave",
         "directories": {
             "output": "release"
         },

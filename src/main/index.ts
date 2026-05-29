@@ -30,7 +30,7 @@ function createWindow(): void {
         height: 800,
         minWidth: 800,
         minHeight: 600,
-        title: '4RouterAi',
+        title: 'TokenWave',
         backgroundColor: '#0d1117',
         frame: false,
         titleBarStyle: 'hidden',
@@ -206,18 +206,19 @@ function setupIPC(): void {
     // ===== Key Provisioning (Module 2) =====
     ipcMain.handle('provision:create-keys', async () => {
         const accessToken = authManager.getAccessToken();
-        if (!accessToken) return { success: false, error: '未登录 4Router' };
+        const userId = authManager.getUserId();
+        if (!accessToken || !userId) return { success: false, error: '未登录 TokenWave' };
 
-        const result = await keyProvisioner.provisionKeys(accessToken);
+        const result = await keyProvisioner.provisionKeys(accessToken, userId);
         if (result.success) {
             // Auto-configure API keys and base URLs in ConfigStore
             if (result.claudeKey) {
                 configStore.setApiKey('anthropic', result.claudeKey);
-                configStore.setBaseUrl('anthropic', 'https://4router.net');
+                configStore.setBaseUrl('anthropic', 'https://api.dshub.top');
             }
             if (result.codexKey) {
                 configStore.setApiKey('openai', result.codexKey);
-                configStore.setBaseUrl('openai', 'https://4router.net/v1');
+                configStore.setBaseUrl('openai', 'https://api.dshub.top/v1');
             }
         }
         return result;

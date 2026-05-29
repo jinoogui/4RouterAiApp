@@ -332,7 +332,7 @@ function setupSidebar() {
     $('#btn-settings')?.addEventListener('click', () => openSettings());
 
     $('#btn-open-website')?.addEventListener('click', () => {
-        window.open('https://4router.net');
+        window.open('https://api.dshub.top');
     });
 
     setupAppUpdateButton();

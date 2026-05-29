@@ -1,6 +1,6 @@
 import * as https from 'https';
 
-const ROUTER_BASE_URL = 'https://4router.net';
+const ROUTER_BASE_URL = 'https://api.dshub.top';
 
 export interface ProvisionResult {
     success: boolean;
@@ -28,19 +28,19 @@ export class KeyProvisioner {
      * Core method: Create a set of API Keys (Claude + Codex) using accessToken.
      * Idempotent: reuses existing tokens if they already exist.
      */
-    async provisionKeys(accessToken: string): Promise<ProvisionResult> {
+    async provisionKeys(accessToken: string, userId: string): Promise<ProvisionResult> {
         try {
             // Create Claude Key (group: AppClaude)
-            const claudeKey = await this.createToken(accessToken, {
-                name: '4RouterApp-Claude',
+            const claudeKey = await this.createToken(accessToken, userId, {
+                name: 'TokenWave-Claude',
                 group: 'AppClaude',
                 expiredTime: -1,
                 unlimitedQuota: true,
             });
 
             // Create Codex Key (group: AppCodex)
-            const codexKey = await this.createToken(accessToken, {
-                name: '4RouterApp-Codex',
+            const codexKey = await this.createToken(accessToken, userId, {
+                name: 'TokenWave-Codex',
                 group: 'AppCodex',
                 expiredTime: -1,
                 unlimitedQuota: true,
@@ -58,13 +58,13 @@ export class KeyProvisioner {
      * 2. If exists, return existing key
      * 3. If not, create new token, then search to get the key string
      */
-    async createToken(accessToken: string, options: CreateTokenOptions): Promise<string> {
+    async createToken(accessToken: string, userId: string, options: CreateTokenOptions): Promise<string> {
         // Step 1: Search for existing token (idempotent)
-        const existingKey = await this.findTokenKey(accessToken, options.name);
+        const existingKey = await this.findTokenKey(accessToken, userId, options.name);
         if (existingKey) return existingKey;
 
         // Step 2: Create new token
-        const createResult = await this.httpPost('/api/token/', accessToken, {
+        const createResult = await this.httpPost('/api/token/', accessToken, userId, {
             name: options.name,
             group: options.group,
             expired_time: options.expiredTime ?? -1,
@@ -83,7 +83,7 @@ export class KeyProvisioner {
         // Small delay to ensure DB write is committed
         await new Promise(r => setTimeout(r, 500));
 
-        const newKey = await this.findTokenKey(accessToken, options.name);
+        const newKey = await this.findTokenKey(accessToken, userId, options.name);
         if (!newKey) {
             throw new Error(`Token "${options.name}" 创建后未能获取 key`);
         }
@@ -93,11 +93,12 @@ export class KeyProvisioner {
     /**
      * Search for a token by name and return its key string.
      */
-    private async findTokenKey(accessToken: string, tokenName: string): Promise<string | null> {
+    private async findTokenKey(accessToken: string, userId: string, tokenName: string): Promise<string | null> {
         const encodedName = encodeURIComponent(tokenName);
         const result = await this.httpGet(
             `/api/token/search?keyword=${encodedName}`,
-            accessToken
+            accessToken,
+            userId
         );
 
         if (result.success && result.data) {
@@ -120,7 +121,7 @@ export class KeyProvisioner {
     /**
      * HTTP GET request with Bearer token authentication.
      */
-    private httpGet(path: string, accessToken: string): Promise<any> {
+    private httpGet(path: string, accessToken: string, userId: string): Promise<any> {
         return new Promise((resolve, reject) => {
             const url = new URL(`${this.baseUrl}${path}`);
             const options: https.RequestOptions = {
@@ -130,6 +131,7 @@ export class KeyProvisioner {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
+                    'New-Api-User': userId,
                     'Accept': 'application/json',
                 },
             };
@@ -155,7 +157,7 @@ export class KeyProvisioner {
     /**
      * HTTP POST request with Bearer token authentication.
      */
-    private httpPost(path: string, accessToken: string, body: any): Promise<any> {
+    private httpPost(path: string, accessToken: string, userId: string, body: any): Promise<any> {
         return new Promise((resolve, reject) => {
             const url = new URL(`${this.baseUrl}${path}`);
             const bodyStr = JSON.stringify(body);
@@ -166,6 +168,7 @@ export class KeyProvisioner {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
+                    'New-Api-User': userId,
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(bodyStr),
                     'Accept': 'application/json',

@@ -2,8 +2,9 @@ import { BrowserWindow, session } from 'electron';
 import * as https from 'https';
 import { ConfigStore } from './config-store';
 
-const ROUTER_BASE_URL = 'https://4router.net';
-const ACCESS_TOKEN_KEY = '4router-access-token';
+const ROUTER_BASE_URL = 'https://api.dshub.top';
+const ACCESS_TOKEN_KEY = 'tokenwave-access-token';
+const USER_ID_KEY = 'tokenwave-user-id';
 
 /** How often (ms) to poll cookies and check login status */
 const POLL_INTERVAL = 3000;
@@ -17,7 +18,7 @@ export interface LoginResult {
 
 /**
  * Module 1: AuthManager
- * Handles 4Router login/registration via embedded WebView (Electron BrowserWindow).
+ * Handles TokenWave login/registration via embedded WebView (Electron BrowserWindow).
  * After successful login, obtains and stores the accessToken.
  *
  * Detection strategy: poll the WebView's session cookies every few seconds.
@@ -35,7 +36,7 @@ export class AuthManager {
     }
 
     /**
-     * Open a WebView window for 4Router login/registration.
+     * Open a WebView window for TokenWave login/registration.
      * Returns a Promise that resolves when login is successful or the window is closed.
      */
     async loginViaWebView(parentWindow: BrowserWindow): Promise<LoginResult> {
@@ -65,7 +66,7 @@ export class AuthManager {
                 height: 700,
                 parent: parentWindow,
                 modal: true,
-                title: '登录 4Router',
+                title: '登录 TokenWave',
                 autoHideMenuBar: true,
                 webPreferences: {
                     session: authSession,
@@ -95,11 +96,18 @@ export class AuthManager {
                     }
 
                     console.log('[AuthManager] poll: trying fetchAccessToken...');
-                    const accessToken = await this.fetchAccessToken(cookieHeader);
+                    const userId = await this.readUserIdFromWebView();
+                    console.log('[AuthManager] poll: userId from localStorage =', userId);
+                    if (!userId) {
+                        console.log('[AuthManager] poll: no userId yet, skipping');
+                        return;
+                    }
+                    const accessToken = await this.fetchAccessToken(cookieHeader, userId);
                     console.log('[AuthManager] poll: got accessToken =', accessToken?.slice(0, 8) + '...');
 
                     // Success — store and close
                     this.configStore.setApiKey(ACCESS_TOKEN_KEY, accessToken);
+                    this.configStore.setApiKey(USER_ID_KEY, userId);
 
                     if (this.loginWindow && !this.loginWindow.isDestroyed()) {
                         this.loginWindow.close();
@@ -131,6 +139,13 @@ export class AuthManager {
     }
 
     /**
+     * Get the stored New-API user id (required as `New-Api-User` request header).
+     */
+    getUserId(): string | null {
+        return this.configStore.getApiKey(USER_ID_KEY);
+    }
+
+    /**
      * Check if user is logged in (has a valid accessToken stored).
      */
     isLoggedIn(): boolean {
@@ -142,6 +157,28 @@ export class AuthManager {
      */
     logout(): void {
         this.configStore.setApiKey(ACCESS_TOKEN_KEY, '');
+        this.configStore.setApiKey(USER_ID_KEY, '');
+    }
+
+    /**
+     * Read New-API user.id from the WebView's localStorage.
+     * New-API stores logged-in user info as JSON under key "user".
+     * Returns null if the key is missing or unparseable (i.e. user not logged in yet).
+     */
+    private async readUserIdFromWebView(): Promise<string | null> {
+        if (!this.loginWindow || this.loginWindow.isDestroyed()) return null;
+        try {
+            const raw = await this.loginWindow.webContents.executeJavaScript(
+                `localStorage.getItem('user')`,
+                true
+            );
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const id = parsed?.id;
+            return id != null ? String(id) : null;
+        } catch {
+            return null;
+        }
     }
 
     /**
@@ -149,7 +186,7 @@ export class AuthManager {
      * This endpoint generates/returns the accessToken.
      * Throws on failure (not logged in, network error, etc.).
      */
-    private fetchAccessToken(cookieHeader: string): Promise<string> {
+    private fetchAccessToken(cookieHeader: string, userId: string): Promise<string> {
         return new Promise((resolve, reject) => {
             const url = new URL(`${ROUTER_BASE_URL}/api/user/token`);
             const options: https.RequestOptions = {
@@ -159,6 +196,7 @@ export class AuthManager {
                 method: 'GET',
                 headers: {
                     'Cookie': cookieHeader,
+                    'New-Api-User': userId,
                     'Accept': 'application/json',
                 },
             };

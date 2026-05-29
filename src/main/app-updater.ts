@@ -6,8 +6,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { ConfigStore } from './config-store';
 
-const GITHUB_API_URL = 'https://api.github.com/repos/4Router/4RouterAiApp/releases/latest';
-const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/4Router/4RouterAiApp/main/remote-config.json';
+const GITHUB_API_URL = 'https://api.github.com/repos/jinoogui/4RouterAiApp/releases/latest';
+const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/jinoogui/4RouterAiApp/main/remote-config.json';
 
 /**
  * All Chinese GitHub proxy/mirror services for speed testing.

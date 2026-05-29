@@ -32,7 +32,7 @@ export class PtyManager {
 
     createSession(toolId: string, cwd?: string): string {
         const sessionId = `session-${++this.sessionCounter}-${Date.now()}`;
-        const defaultCwd = path.join(os.homedir(), 'Documents', '4RouterAi');
+        const defaultCwd = path.join(os.homedir(), 'Documents', 'TokenWave');
         if (!cwd) {
             const fs = require('fs') as typeof import('fs');
             fs.mkdirSync(defaultCwd, { recursive: true });
