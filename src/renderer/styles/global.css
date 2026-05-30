@@ -1960,3 +1960,120 @@ select.text-input {
 .account-qr-status.error {
     color: var(--accent-red);
 }
+
+/* ===== Session History ===== */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.history-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.history-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-accent);
+}
+
+.history-item-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.history-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+}
+
+.history-item-title {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item-meta {
+    color: var(--text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Search bar above the list */
+.history-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.history-search input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.12s;
+}
+
+.history-search input:focus {
+    border-color: var(--accent-blue);
+}
+
+.history-count {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* Virtual scroll: a fixed-height sizer holds absolutely-positioned rows. */
+.history-list {
+    position: relative;
+}
+
+.history-sizer {
+    position: relative;
+    width: 100%;
+}
+
+.history-list .history-item {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 56px;
+    margin: 0;
+    box-sizing: border-box;
+}

@@ -30,7 +30,7 @@ export class PtyManager {
         this.exitCallbacks.push(callback);
     }
 
-    createSession(toolId: string, cwd?: string): string {
+    createSession(toolId: string, cwd?: string, resumeId?: string): string {
         const sessionId = `session-${++this.sessionCounter}-${Date.now()}`;
         const defaultCwd = path.join(os.homedir(), 'Documents', 'TokenWave');
         if (!cwd) {
@@ -74,7 +74,7 @@ export class PtyManager {
             }
         } else {
             // CLI tool launch
-            const launchConfig = this.toolManager.getLaunchConfig(toolId);
+            const launchConfig = this.toolManager.getLaunchConfig(toolId, resumeId);
             if (!launchConfig) {
                 throw new Error(`Tool "${toolId}" not found or not available`);
             }

@@ -389,7 +389,7 @@ export class ToolManager {
         return this.toolDefinitions.find(t => t.id === toolId) || null;
     }
 
-    getLaunchConfig(toolId: string): LaunchConfig | null {
+    getLaunchConfig(toolId: string, resumeId?: string): LaunchConfig | null {
         const tool = this.toolDefinitions.find(t => t.id === toolId);
         if (!tool) return null;
 
@@ -625,6 +625,18 @@ export class ToolManager {
         if (proxy) {
             env['HTTP_PROXY'] = proxy;
             env['HTTPS_PROXY'] = proxy;
+        }
+
+        // ── Resume an existing session ──
+        // Claude: `claude --resume <sessionId>` (flag, appended to args).
+        // Codex:  `codex resume <SESSION_ID>` (subcommand — must be the first
+        //         positional arg, so unshift before any other flags).
+        if (resumeId) {
+            if (tool.id === 'claude-code') {
+                args.push('--resume', resumeId);
+            } else if (tool.id === 'codex') {
+                args.unshift('resume', resumeId);
+            }
         }
 
         console.log(`[ToolManager] Launch: ${toolId}`, {

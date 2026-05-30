@@ -10,6 +10,7 @@ import { AuthManager } from './auth-manager';
 import { KeyProvisioner } from './key-provisioner';
 import { LocalConfigImporter } from './local-config-importer';
 import { AccountManager } from './account-manager';
+import { SessionStore } from './session-store';
 
 let mainWindow: BrowserWindow | null = null;
 let ptyManager: PtyManager;
@@ -20,6 +21,7 @@ let authManager: AuthManager;
 let keyProvisioner: KeyProvisioner;
 let localConfigImporter: LocalConfigImporter;
 let accountManager: AccountManager;
+let sessionStore: SessionStore;
 
 function getResourcesPath(): string {
     if (app.isPackaged) {
@@ -129,8 +131,8 @@ function setupIPC(): void {
     });
 
     // ===== PTY Management =====
-    ipcMain.handle('pty:create', (_event, toolId: string, cwd?: string) => {
-        const sessionId = ptyManager.createSession(toolId, cwd);
+    ipcMain.handle('pty:create', (_event, toolId: string, cwd?: string, resumeId?: string) => {
+        const sessionId = ptyManager.createSession(toolId, cwd, resumeId);
         return sessionId;
     });
 
@@ -144,6 +146,16 @@ function setupIPC(): void {
 
     ipcMain.handle('pty:destroy', (_event, sessionId: string) => {
         ptyManager.destroySession(sessionId);
+    });
+
+    // ===== Session History =====
+    ipcMain.handle('sessions:list', async () => {
+        try {
+            const data = await sessionStore.listSessions();
+            return { success: true, data };
+        } catch (err) {
+            return { success: false, error: String(err) };
+        }
     });
 
     // ===== Window Titlebar Overlay =====
@@ -545,6 +557,7 @@ app.whenReady().then(() => {
     keyProvisioner = new KeyProvisioner();
     localConfigImporter = new LocalConfigImporter(configStore, toolManager.getAppDataDir());
     accountManager = new AccountManager();
+    sessionStore = new SessionStore(toolManager);
 
     // Forward PTY data to renderer
     ptyManager.onData((sessionId: string, data: string) => {

@@ -18,7 +18,8 @@ contextBridge.exposeInMainWorld('routerAi', {
 
     // ===== Terminal (PTY) =====
     pty: {
-        create: (toolId: string, cwd?: string) => ipcRenderer.invoke('pty:create', toolId, cwd),
+        create: (toolId: string, cwd?: string, resumeId?: string) =>
+            ipcRenderer.invoke('pty:create', toolId, cwd, resumeId),
         write: (sessionId: string, data: string) => ipcRenderer.send('pty:write', sessionId, data),
         resize: (sessionId: string, cols: number, rows: number) =>
             ipcRenderer.send('pty:resize', sessionId, cols, rows),
@@ -34,6 +35,22 @@ contextBridge.exposeInMainWorld('routerAi', {
             ipcRenderer.on('pty:exit', listener);
             return () => ipcRenderer.removeListener('pty:exit', listener);
         },
+    },
+
+    // ===== Session History =====
+    sessions: {
+        list: () =>
+            ipcRenderer.invoke('sessions:list') as Promise<{
+                success: boolean;
+                data?: Array<{
+                    id: string;
+                    tool: 'claude-code' | 'codex';
+                    title: string;
+                    cwd: string;
+                    updatedAt: number;
+                }>;
+                error?: string;
+            }>,
     },
 
     // ===== Config =====

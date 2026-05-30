@@ -478,6 +478,10 @@ function setupSidebar() {
 
     $('#btn-settings')?.addEventListener('click', () => openSettings());
 
+    $('#btn-history')?.addEventListener('click', () => openHistory());
+    $('#btn-close-history')?.addEventListener('click', () => closeHistory());
+    $('#history-overlay')?.addEventListener('click', () => closeHistory());
+
     $('#btn-account')?.addEventListener('click', () => openAccount());
 
     $('#btn-open-website')?.addEventListener('click', () => {
@@ -697,7 +701,177 @@ async function launchTerminal() {
     }
 }
 
-// ===== Clipboard Paste Helper =====
+// ===== Session History =====
+const TOOL_DISPLAY = {
+    'claude-code': { name: 'Claude Code', icon: '🟣' },
+    'codex': { name: 'Codex CLI', icon: '🟢' },
+};
+
+// Virtual scroll: rows are absolutely positioned inside a fixed-height sizer,
+// and only the rows intersecting the viewport (plus overscan) are in the DOM.
+const HISTORY_ROW_HEIGHT = 64; // px — must match .history-item height in CSS
+const HISTORY_OVERSCAN = 4;
+
+const historyState = {
+    /** @type {any[]} */ all: [],
+    /** @type {any[]} */ filtered: [],
+    query: '',
+    bound: false,
+};
+
+function formatRelativeTime(/** @type {number} */ ms) {
+    const diff = Date.now() - ms;
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return '刚刚';
+    if (min < 60) return `${min} 分钟前`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} 小时前`;
+    const day = Math.floor(hr / 24);
+    if (day < 30) return `${day} 天前`;
+    return new Date(ms).toLocaleDateString();
+}
+
+async function openHistory() {
+    const modal = /** @type {HTMLElement} */ ($('#history-modal'));
+    const list = /** @type {HTMLElement} */ ($('#history-list'));
+    modal.classList.remove('hidden');
+    bindHistoryEvents();
+    list.innerHTML = '<div class="history-empty">加载中…</div>';
+
+    const res = await api.sessions.list();
+    if (!res?.success) {
+        historyState.all = [];
+        historyState.filtered = [];
+        updateHistoryCount();
+        list.innerHTML = `<div class="history-empty">加载失败: ${escapeHtml(res?.error || '未知错误')}</div>`;
+        return;
+    }
+    historyState.all = res.data || [];
+    const input = /** @type {HTMLInputElement} */ ($('#history-search-input'));
+    historyState.query = (input?.value || '').trim().toLowerCase();
+    applyHistoryFilter();
+}
+
+function closeHistory() {
+    $('#history-modal')?.classList.add('hidden');
+}
+
+// Bind search + scroll listeners exactly once (the modal nodes persist).
+function bindHistoryEvents() {
+    if (historyState.bound) return;
+    historyState.bound = true;
+    const input = /** @type {HTMLInputElement} */ ($('#history-search-input'));
+    const list = /** @type {HTMLElement} */ ($('#history-list'));
+    let timer;
+    input?.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            historyState.query = (input.value || '').trim().toLowerCase();
+            applyHistoryFilter();
+        }, 120);
+    });
+    list?.addEventListener('scroll', () => renderHistoryViewport());
+}
+
+function applyHistoryFilter() {
+    const q = historyState.query;
+    historyState.filtered = q
+        ? historyState.all.filter((s) =>
+            `${s.title || ''} ${s.cwd || ''}`.toLowerCase().includes(q))
+        : historyState.all.slice();
+    updateHistoryCount();
+
+    const list = /** @type {HTMLElement} */ ($('#history-list'));
+    if (!list) return;
+    if (historyState.all.length === 0) {
+        list.innerHTML = '<div class="history-empty">暂无历史会话。启动 Claude Code 或 Codex 对话后会出现在这里。</div>';
+        return;
+    }
+    if (historyState.filtered.length === 0) {
+        list.innerHTML = '<div class="history-empty">没有匹配的会话。</div>';
+        return;
+    }
+    list.scrollTop = 0;
+    list.innerHTML = '<div class="history-sizer"></div>';
+    const sizer = /** @type {HTMLElement} */ (list.querySelector('.history-sizer'));
+    sizer.style.height = `${historyState.filtered.length * HISTORY_ROW_HEIGHT}px`;
+    renderHistoryViewport();
+}
+
+function updateHistoryCount() {
+    const el = $('#history-count');
+    if (!el) return;
+    const total = historyState.all.length;
+    if (!total) { el.textContent = ''; return; }
+    el.textContent = historyState.query
+        ? `${historyState.filtered.length} / ${total}`
+        : `${total} 条`;
+}
+
+function renderHistoryViewport() {
+    const list = /** @type {HTMLElement} */ ($('#history-list'));
+    const sizer = /** @type {HTMLElement} */ (list?.querySelector('.history-sizer'));
+    if (!list || !sizer) return;
+    const total = historyState.filtered.length;
+    const viewport = list.clientHeight || 400;
+    const top = list.scrollTop;
+    const start = Math.max(0, Math.floor(top / HISTORY_ROW_HEIGHT) - HISTORY_OVERSCAN);
+    const end = Math.min(total, Math.ceil((top + viewport) / HISTORY_ROW_HEIGHT) + HISTORY_OVERSCAN);
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < end; i++) {
+        frag.appendChild(buildHistoryItem(historyState.filtered[i], i));
+    }
+    sizer.innerHTML = '';
+    sizer.appendChild(frag);
+}
+
+function buildHistoryItem(/** @type {any} */ s, /** @type {number} */ index) {
+    const meta = TOOL_DISPLAY[/** @type {keyof typeof TOOL_DISPLAY} */ (s.tool)] || { name: s.tool, icon: '⬛' };
+    const cwdTail = (s.cwd || '').replace(/\\/g, '/').split('/').filter(Boolean).slice(-2).join('/');
+    const item = document.createElement('button');
+    item.className = 'history-item';
+    item.style.top = `${index * HISTORY_ROW_HEIGHT}px`;
+    item.innerHTML =
+        `<span class="history-item-icon">${meta.icon}</span>` +
+        `<span class="history-item-main">` +
+        `<span class="history-item-title">${escapeHtml(s.title || '未命名会话')}</span>` +
+        `<span class="history-item-meta">${escapeHtml(meta.name)} · ${escapeHtml(cwdTail || '~')} · ${formatRelativeTime(s.updatedAt)}</span>` +
+        `</span>`;
+    item.addEventListener('click', () => resumeSession(s));
+    return item;
+}
+
+async function resumeSession(/** @type {any} */ s) {
+    const tools = await api.tools.list();
+    const tool = tools.find((/** @type {any} */ t) => t.id === s.tool);
+    if (!tool) {
+        toast('该工具不可用', 'error');
+        return;
+    }
+    if (!tool.available) {
+        toast(`${tool.name} 的内置运行时缺失`, 'error');
+        return;
+    }
+    const hasKey = await api.config.hasApiKey(tool.provider);
+    if (!hasKey) {
+        toast(`请先在设置中配置 ${tool.name} 的 API Key`, 'error');
+        return;
+    }
+    try {
+        // Resume must reuse the session's original cwd — Claude organizes
+        // sessions by cwd-encoded directory, so a mismatched cwd won't find it.
+        const cwd = s.cwd || state.currentCwd || undefined;
+        const sessionId = await api.pty.create(s.tool, cwd, s.id);
+        createTab(s.tool, tool.name, tool.icon, sessionId);
+        closeHistory();
+    } catch (err) {
+        console.error('Failed to resume session:', err);
+        toast(`恢复会话失败: ${err}`, 'error');
+    }
+}
+
+
 /**
  * Send an image file path to the PTY using xterm bracketed-paste markers,
  * matching how Claude Code's CLI detects pasted image attachments.
@@ -1099,7 +1273,7 @@ function setupSettings() {
     overlay?.addEventListener('click', closeModal);
 
     btnLogout?.addEventListener('click', async () => {
-        const ok = confirm('退出登录会清除本地保存的 access token 和已生成的 Claude/Codex API key。\n\n下次启动需要重新登录 TokenWave。要继续吗？');
+        const ok = confirm('退出会清除 TokenWave 程序内保存的登录态和 API Key，不会影响你本机 ~/.claude、~/.codex 的原有配置。\n\n下次启动需要重新登录或重新导入。要继续吗？');
         if (!ok) return;
         try {
             await api.auth.logout();
@@ -1168,13 +1342,17 @@ async function openSettings() {
 
     // Login status indicator in the Account section.
     const loggedIn = await api.auth.isLoggedIn();
+    const hasAnyKey = (await api.config.hasApiKey('anthropic')) || (await api.config.hasApiKey('openai'));
     const statusEl = $('#account-status-text');
     const logoutBtn = /** @type {HTMLButtonElement} */ ($('#btn-logout'));
     if (statusEl) {
         statusEl.textContent = loggedIn ? '已登录 TokenWave' : '未登录';
         statusEl.style.color = loggedIn ? '#3fb950' : '#8b949e';
     }
-    if (logoutBtn) logoutBtn.disabled = !loggedIn;
+    // Enable when there's anything to clear — logged in OR local keys were
+    // imported without a TokenWave login. Otherwise the button is disabled
+    // and a click produces no response at all.
+    if (logoutBtn) logoutBtn.disabled = !(loggedIn || hasAnyKey);
 
     const themeSelect = /** @type {HTMLSelectElement} */ ($('#settings-theme'));
     if (themeSelect) themeSelect.value = theme || 'fruit';

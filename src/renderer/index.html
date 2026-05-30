@@ -173,6 +173,10 @@
           <span>📁</span>
           <span id="cwd-display" class="cwd-text">选择目录...</span>
         </button>
+        <button id="btn-history" class="sidebar-action-btn">
+          <span>🕘</span>
+          <span>历史会话</span>
+        </button>
       </div>
 
       <div class="sidebar-bottom">
@@ -227,6 +231,26 @@
   </div>
 
   <!-- Settings Modal -->
+  <!-- History Sessions Modal -->
+  <div id="history-modal" class="modal hidden">
+    <div class="modal-overlay" id="history-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>历史会话</h2>
+        <button id="btn-close-history" class="btn-icon">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="history-search">
+          <input id="history-search-input" type="text" placeholder="搜索标题或路径…" autocomplete="off" spellcheck="false" />
+          <span id="history-count" class="history-count"></span>
+        </div>
+        <div id="history-list" class="history-list">
+          <div class="history-empty">加载中…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="settings-modal" class="modal hidden">
     <div class="modal-overlay"></div>
     <div class="modal-content">
