@@ -37,9 +37,11 @@ export function createExtensionsPanel(panels, api, hooks) {
         panels.mcp.append(hint);
 
         const toolbar = el('div', 'ext-toolbar');
+        const btnSearch = el('button', 'btn-secondary btn-small', '🔍 搜索市场');
+        btnSearch.addEventListener('click', openMcpMarket);
         const btnAdd = el('button', 'btn-primary btn-small', '+ 新增 MCP');
         btnAdd.addEventListener('click', () => openMcpForm(null));
-        toolbar.append(btnAdd);
+        toolbar.append(btnSearch, btnAdd);
         panels.mcp.append(toolbar);
 
         let servers = [];
@@ -287,9 +289,11 @@ export function createExtensionsPanel(panels, api, hooks) {
             'Skills 是 Claude Code 的能力扩展（文件夹 + SKILL.md），仅对 Claude Code 生效。'));
 
         const toolbar = el('div', 'ext-toolbar');
+        const btnMarket = el('button', 'btn-secondary btn-small', '🔍 浏览市场');
+        btnMarket.addEventListener('click', openSkillsMarket);
         const btnAdd = el('button', 'btn-primary btn-small', '+ 新增 Skill');
         btnAdd.addEventListener('click', addSkill);
-        toolbar.append(btnAdd);
+        toolbar.append(btnMarket, btnAdd);
         panels.skills.append(toolbar);
 
         let skills = [];
@@ -354,6 +358,168 @@ export function createExtensionsPanel(panels, api, hooks) {
         toast('已创建，正在打开编辑器');
         await openFileInEditor(r.path, `${name.trim()}/SKILL.md`);
         closeModal();
+    }
+
+    // ──────────────────────── Marketplace ────────────────────────
+
+    /** Build a market overlay shell with a title, close button, body. */
+    function marketOverlay(hostPanel, title) {
+        const overlay = el('div', 'ext-market-overlay');
+        const head = el('div', 'ext-market-head');
+        head.append(el('h3', null, title));
+        const close = el('button', 'btn-icon', '✕');
+        close.addEventListener('click', () => overlay.remove());
+        head.append(close);
+        const body = el('div', 'ext-market-body');
+        overlay.append(head, body);
+        hostPanel.closest('.modal-body').append(overlay);
+        return { overlay, body };
+    }
+
+    function resultCard(name, desc, badge, onInstall) {
+        const card = el('div', 'ext-market-card');
+        const info = el('div', 'ext-market-card-info');
+        const title = el('div', 'ext-row-title');
+        title.append(el('span', 'ext-name', name));
+        if (badge) title.append(el('span', 'ext-badge', badge));
+        info.append(title);
+        if (desc) {
+            const d = el('div', 'ext-row-sub');
+            d.textContent = desc;
+            info.append(d);
+        }
+        card.append(info);
+        const btn = el('button', 'btn-primary btn-small', '安装');
+        btn.addEventListener('click', () => onInstall(btn));
+        card.append(btn);
+        return card;
+    }
+
+    function openMcpMarket() {
+        const { body } = marketOverlay(panels.mcp, '🔍 MCP 市场');
+
+        // manual install row
+        const manual = el('div', 'ext-market-manual');
+        const manualInput = el('input', 'text-input');
+        manualInput.placeholder = '粘贴 npm 包名（如 @scope/server-foo）后点安装';
+        const manualBtn = el('button', 'btn-secondary btn-small', '安装');
+        manualBtn.addEventListener('click', () => installMcp({ pkgOrUrl: manualInput.value.trim() }, manualBtn));
+        manual.append(manualInput, manualBtn);
+        body.append(manual);
+
+        // search row
+        const searchRow = el('div', 'ext-market-search');
+        const input = el('input', 'text-input');
+        input.placeholder = '搜索官方 MCP Registry…';
+        const go = el('button', 'btn-primary btn-small', '搜索');
+        searchRow.append(input, go);
+        body.append(searchRow);
+
+        const results = el('div', 'ext-market-results');
+        body.append(results);
+
+        const doSearch = async () => {
+            results.innerHTML = '';
+            results.append(el('div', 'ext-market-loading', '搜索中…'));
+            const r = await api.mcp.search(input.value.trim());
+            results.innerHTML = '';
+            if (!r?.success) { results.append(el('div', 'ext-empty', r?.error || '搜索失败')); return; }
+            if (!r.items.length) { results.append(el('div', 'ext-empty', '没有结果')); return; }
+            for (const item of r.items) {
+                results.append(resultCard(item.name, item.description,
+                    item.kind === 'http' ? 'http' : 'stdio',
+                    (btn) => chooseTargetsAndInstall(item, btn)));
+            }
+        };
+        go.addEventListener('click', doSearch);
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+        input.focus();
+    }
+
+    // Ask which CLIs to install to (http disables Codex), then install.
+    async function chooseTargetsAndInstall(item, btn) {
+        const targets = ['claude-code'];
+        if (item.kind !== 'http') {
+            const both = await confirmDialog('同时安装到 Codex？（取消 = 仅 Claude Code）', false);
+            if (both) targets.push('codex');
+        }
+        installMcp({ item, targets }, btn);
+    }
+
+    async function installMcp(payload, btn) {
+        if (payload.pkgOrUrl === '') { toast('请输入 npm 包名', 'error'); return; }
+        const orig = btn.textContent;
+        btn.disabled = true; btn.textContent = '安装中…';
+        let r = await api.mcp.install({ ...payload, targets: payload.targets || ['claude-code'] });
+        if (!r?.success && r?.code === 'EEXIST') {
+            if (await confirmDialog(`已存在同名 MCP「${r.name}」，覆盖？`, true)) {
+                r = await api.mcp.install({ ...payload, targets: payload.targets || ['claude-code'], overwrite: true });
+            } else { btn.disabled = false; btn.textContent = orig; return; }
+        }
+        btn.disabled = false; btn.textContent = orig;
+        if (!r?.success) { toast(r?.error || '安装失败', 'error'); return; }
+        if (r.partial?.length) toast('部分目标写入失败：' + r.partial.join(', '), 'error');
+        else toast('已安装，下次启动该工具生效');
+        renderMcp();
+    }
+
+    function openSkillsMarket() {
+        const { body } = marketOverlay(panels.skills, '🔍 Skills 市场');
+
+        // repo override + URL install
+        const repoRow = el('div', 'ext-market-search');
+        const repoInput = el('input', 'text-input');
+        repoInput.placeholder = '市场仓库 owner/repo（留空用默认）';
+        const loadBtn = el('button', 'btn-primary btn-small', '加载');
+        repoRow.append(repoInput, loadBtn);
+        body.append(repoRow);
+
+        const urlRow = el('div', 'ext-market-manual');
+        const urlInput = el('input', 'text-input');
+        urlInput.placeholder = '或粘贴 GitHub skill 目录地址 → 安装';
+        const urlBtn = el('button', 'btn-secondary btn-small', '安装');
+        urlBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!url) { toast('请输入地址', 'error'); return; }
+            await installSkill({ url, fromUrl: true }, urlBtn);
+        });
+        urlRow.append(urlInput, urlBtn);
+        body.append(urlRow);
+
+        const results = el('div', 'ext-market-results');
+        body.append(results);
+
+        const load = async () => {
+            results.innerHTML = '';
+            results.append(el('div', 'ext-market-loading', '加载中…'));
+            const r = await api.skills.search(repoInput.value.trim() || undefined);
+            results.innerHTML = '';
+            if (!r?.success) { results.append(el('div', 'ext-empty', r?.error || '加载失败')); return; }
+            if (!r.items.length) { results.append(el('div', 'ext-empty', '该仓库没有可用 skill')); return; }
+            for (const item of r.items) {
+                results.append(resultCard(item.name, item.description, null,
+                    (btn) => installSkill({ repo: item.repo, dirPath: item.dirPath, name: item.name }, btn)));
+            }
+        };
+        loadBtn.addEventListener('click', load);
+        load();
+    }
+
+    async function installSkill(payload, btn) {
+        const orig = btn.textContent;
+        btn.disabled = true; btn.textContent = '安装中…';
+        const call = (overwrite) => payload.fromUrl
+            ? api.skills.installUrl({ url: payload.url, overwrite })
+            : api.skills.install({ repo: payload.repo, dirPath: payload.dirPath, name: payload.name, overwrite });
+        let r = await call(false);
+        if (!r?.success && r?.code === 'EEXIST') {
+            if (await confirmDialog('已存在同名 Skill，覆盖？', true)) r = await call(true);
+            else { btn.disabled = false; btn.textContent = orig; return; }
+        }
+        btn.disabled = false; btn.textContent = orig;
+        if (!r?.success) { toast(r?.error || '安装失败', 'error'); return; }
+        toast('已安装，下次启动 Claude Code 生效');
+        renderSkills();
     }
 
     return {

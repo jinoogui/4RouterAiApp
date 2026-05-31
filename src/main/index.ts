@@ -14,6 +14,7 @@ import { SessionStore } from './session-store';
 import { ImageGenerator } from './image-generator';
 import { McpManager, McpServer } from './mcp-manager';
 import { SkillsManager } from './skills-manager';
+import { RegistryClient, parseGithubUrl } from './registry-client';
 
 let mainWindow: BrowserWindow | null = null;
 let ptyManager: PtyManager;
@@ -28,6 +29,7 @@ let sessionStore: SessionStore;
 let imageGenerator: ImageGenerator;
 let mcpManager: McpManager;
 let skillsManager: SkillsManager;
+let registryClient: RegistryClient;
 
 function getResourcesPath(): string {
     if (app.isPackaged) {
@@ -671,6 +673,70 @@ function setupIPC(): void {
     ipcMain.handle('skills:update', (_e, name: string, content: string) => skillsManager.update(name, content));
     ipcMain.handle('skills:remove', (_e, name: string) => skillsManager.remove(name));
     ipcMain.handle('skills:toggle', (_e, name: string, enabled: boolean) => skillsManager.toggle(name, enabled));
+
+    // ===== Extension marketplace (search + install) =====
+    const DEFAULT_SKILLS_REPO = 'anthropics/skills';
+
+    ipcMain.handle('mcp:search', async (_e, query: string) => {
+        try { return { success: true, items: await registryClient.searchMcp(query) }; }
+        catch (err: any) { return { success: false, error: err?.message || '搜索失败', items: [] }; }
+    });
+
+    // payload: { item?, pkgOrUrl?, targets, overwrite }
+    ipcMain.handle('mcp:install', async (_e, payload: any) => {
+        try {
+            const targets: ('claude-code' | 'codex')[] = payload?.targets?.length ? payload.targets : ['claude-code'];
+            let server: McpServer;
+            if (payload?.item) {
+                server = registryClient.catalogItemToServer(payload.item, targets);
+            } else {
+                const raw = (payload?.pkgOrUrl || '').trim();
+                if (!raw) return { success: false, error: '请输入 npm 包名或 GitHub 地址' };
+                server = registryClient.resolveNpmPackage(raw);
+                server.targets = targets;
+            }
+            if (mcpManager.exists(server.name)) {
+                if (!payload?.overwrite) return { success: false, error: 'exists', code: 'EEXIST', name: server.name };
+                return mcpManager.update(server.name, server);
+            }
+            return mcpManager.add(server);
+        } catch (err: any) {
+            return { success: false, error: err?.message || '安装失败' };
+        }
+    });
+
+    ipcMain.handle('skills:search', async (_e, repoOverride?: string) => {
+        try {
+            const repo = (repoOverride || (configStore.get('skillsMarketRepo') as string) || DEFAULT_SKILLS_REPO).trim();
+            const { repo: r, dirPath } = parseGithubUrl(repo);
+            return { success: true, repo: r, items: await registryClient.fetchSkillsCatalog(r, dirPath) };
+        } catch (err: any) {
+            return { success: false, error: err?.message || '搜索失败', items: [] };
+        }
+    });
+
+    // install from market: { repo, dirPath, name, overwrite }
+    ipcMain.handle('skills:install', async (_e, p: any) => {
+        try {
+            const files = await registryClient.downloadSkillTree(p.repo, p.dirPath);
+            return skillsManager.installFromFiles(p.name, files, !!p.overwrite);
+        } catch (err: any) {
+            return { success: false, error: err?.message || '安装失败' };
+        }
+    });
+
+    // install from a pasted GitHub URL: { url, overwrite }
+    ipcMain.handle('skills:install-url', async (_e, p: any) => {
+        try {
+            const { repo, dirPath } = parseGithubUrl(p.url);
+            if (!dirPath) return { success: false, error: '请提供指向具体 skill 目录的地址（含 /tree/<branch>/<path>）' };
+            const name = dirPath.split('/').pop()!;
+            const files = await registryClient.downloadSkillTree(repo, dirPath);
+            return skillsManager.installFromFiles(name, files, !!p.overwrite);
+        } catch (err: any) {
+            return { success: false, error: err?.message || '安装失败' };
+        }
+    });
 }
 
 app.whenReady().then(() => {
@@ -688,6 +754,7 @@ app.whenReady().then(() => {
     imageGenerator = new ImageGenerator(configStore);
     mcpManager = new McpManager(toolManager);
     skillsManager = new SkillsManager(toolManager);
+    registryClient = new RegistryClient(configStore);
 
     // Forward PTY data to renderer
     ptyManager.onData((sessionId: string, data: string) => {

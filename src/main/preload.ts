@@ -129,6 +129,8 @@ contextBridge.exposeInMainWorld('routerAi', {
         update: (oldName: string, server: any) => ipcRenderer.invoke('mcp:update', oldName, server),
         remove: (name: string) => ipcRenderer.invoke('mcp:remove', name),
         toggle: (name: string, enabled: boolean) => ipcRenderer.invoke('mcp:toggle', name, enabled),
+        search: (query: string) => ipcRenderer.invoke('mcp:search', query),
+        install: (payload: any) => ipcRenderer.invoke('mcp:install', payload),
     },
 
     // ===== Skills (Claude Code only) =====
@@ -139,6 +141,9 @@ contextBridge.exposeInMainWorld('routerAi', {
         update: (name: string, content: string) => ipcRenderer.invoke('skills:update', name, content),
         remove: (name: string) => ipcRenderer.invoke('skills:remove', name),
         toggle: (name: string, enabled: boolean) => ipcRenderer.invoke('skills:toggle', name, enabled),
+        search: (repoOverride?: string) => ipcRenderer.invoke('skills:search', repoOverride),
+        install: (payload: any) => ipcRenderer.invoke('skills:install', payload),
+        installUrl: (payload: any) => ipcRenderer.invoke('skills:install-url', payload),
     },
 
     // ===== Local Config Import =====

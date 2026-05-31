@@ -20,6 +20,8 @@ interface ConfigSchema {
     ccBypassPermissions: boolean;
     codexBypassPermissions: boolean;
     firstLaunch: boolean;
+    /** Override GitHub repo (owner/repo[/path]) used as the Skills market. */
+    skillsMarketRepo: string;
 }
 
 const defaults: ConfigSchema = {
@@ -39,6 +41,7 @@ const defaults: ConfigSchema = {
     ccBypassPermissions: false,
     codexBypassPermissions: false,
     firstLaunch: true,
+    skillsMarketRepo: '',
 };
 
 // AES-256-GCM payload prefix, so we can distinguish our format from legacy

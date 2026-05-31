@@ -19,6 +19,7 @@ export interface SkillResult {
     path?: string;
     content?: string;
     error?: string;
+    code?: string;
 }
 
 /**
@@ -97,6 +98,43 @@ export class SkillsManager {
             return { success: true, path: file };
         } catch (err: any) {
             return { success: false, error: err?.message || '创建技能失败' };
+        }
+    }
+
+    /**
+     * Install a downloaded skill (a set of relative-path files) into its own
+     * folder. Refuses to overwrite unless `overwrite` is set; every file path
+     * is validated to stay within the skill directory (no `..` traversal).
+     */
+    installFromFiles(name: string, files: { rel: string; content: string }[], overwrite: boolean): SkillResult {
+        const safe = this.sanitize(name);
+        if (!safe) return { success: false, error: '名称非法（仅允许字母/数字/._-，不能以点开头）' };
+
+        const existing = this.resolveDir(safe);
+        if (existing && !overwrite) {
+            return { success: false, error: 'exists', code: 'EEXIST' };
+        }
+        if (!files.some((f) => /^SKILL\.md$/i.test(f.rel))) {
+            return { success: false, error: '缺少 SKILL.md，不是有效的 Skill' };
+        }
+
+        const skillDir = path.join(this.skillsDir(), safe);
+        const skillRoot = path.resolve(skillDir);
+        try {
+            if (existing) fs.rmSync(existing, { recursive: true, force: true });
+            fs.mkdirSync(skillDir, { recursive: true });
+            for (const f of files) {
+                const dest = path.resolve(skillDir, f.rel);
+                // reject anything resolving outside the skill folder
+                if (dest !== skillRoot && !dest.startsWith(skillRoot + path.sep)) {
+                    throw new Error(`非法文件路径：${f.rel}`);
+                }
+                fs.mkdirSync(path.dirname(dest), { recursive: true });
+                fs.writeFileSync(dest, f.content, 'utf-8');
+            }
+            return { success: true, path: path.join(skillDir, 'SKILL.md') };
+        } catch (err: any) {
+            return { success: false, error: err?.message || '安装技能失败' };
         }
     }
 

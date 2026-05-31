@@ -102,6 +102,11 @@ export class McpManager {
         return this.writeServer({ ...server, name }, null);
     }
 
+    /** Whether a server with this exact name already exists (any state). */
+    exists(name: string): boolean {
+        return this.list().some((s) => s.name === name);
+    }
+
     update(oldName: string, server: McpServer): McpResult {
         const name = sanitizeMcpName(server.name);
         if (!name) return { success: false, error: '名称非法（仅允许字母/数字/._-）' };

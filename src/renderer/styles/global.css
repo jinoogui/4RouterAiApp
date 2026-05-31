@@ -2511,8 +2511,20 @@ select.text-input {
 
 /* ===== Extensions Modal (MCP + Skills) ===== */
 .extensions-modal-content {
-    max-width: 680px;
     width: 90vw;
+    max-width: 1040px;
+    height: 88vh;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Let the body grow and scroll inside the taller modal. */
+#extensions-modal .modal-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    position: relative;
 }
 
 .ext-hint {
@@ -2654,10 +2666,6 @@ select.text-input {
 }
 
 /* MCP add/edit form overlay (inside the modal body) */
-#extensions-modal .modal-body {
-    position: relative;
-}
-
 .ext-form-overlay {
     position: absolute;
     inset: 0;
@@ -2730,4 +2738,90 @@ select.text-input {
     justify-content: flex-end;
     gap: 10px;
     margin-top: 4px;
+}
+
+/* Marketplace overlay (search + install) */
+.ext-market-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-primary);
+    display: flex;
+    flex-direction: column;
+    z-index: 6;
+}
+
+.ext-market-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.ext-market-head h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.ext-market-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ext-market-search,
+.ext-market-manual {
+    display: flex;
+    gap: 8px;
+}
+
+.ext-market-search .text-input,
+.ext-market-manual .text-input {
+    flex: 1;
+}
+
+.ext-market-manual {
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--border-default);
+}
+
+.ext-market-results {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ext-market-loading,
+.ext-market-results .ext-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 20px 0;
+}
+
+.ext-market-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+}
+
+.ext-market-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ext-market-card-info .ext-row-sub {
+    white-space: normal;
+    line-height: 1.5;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
