@@ -96,6 +96,10 @@ contextBridge.exposeInMainWorld('routerAi', {
     // ===== Аuth =====
     auth: {
         loginWebView: () => ipcRenderer.invoke('auth:login-webview'),
+        login: (username: string, password: string) =>
+            ipcRenderer.invoke('auth:login-credentials', username, password),
+        register: (username: string, password: string) =>
+            ipcRenderer.invoke('auth:register', username, password),
         isLoggedIn: () => ipcRenderer.invoke('auth:is-logged-in'),
         logout: () => ipcRenderer.invoke('auth:logout'),
     },

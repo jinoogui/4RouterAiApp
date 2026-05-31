@@ -250,6 +250,12 @@ function setupIPC(): void {
         return authManager.loginViaWebView(mainWindow);
     });
 
+    // In-app username/password login & registration (no WebView).
+    ipcMain.handle('auth:login-credentials', (_e, username: string, password: string) =>
+        authManager.loginWithCredentials(username, password));
+    ipcMain.handle('auth:register', (_e, username: string, password: string) =>
+        authManager.register(username, password));
+
     ipcMain.handle('auth:is-logged-in', () => {
         return authManager.isLoggedIn();
     });

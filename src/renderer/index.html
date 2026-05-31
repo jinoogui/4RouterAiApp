@@ -403,6 +403,37 @@
     </div>
   </div>
 
+  <!-- Auth (login / register) Modal -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-overlay" id="auth-overlay"></div>
+    <div class="modal-content auth-modal-content">
+      <div class="modal-header">
+        <h2 id="auth-title">登录 TokenWave</h2>
+        <button class="btn-icon" id="btn-close-auth" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="auth-field">
+          <label for="auth-username">用户名</label>
+          <input type="text" id="auth-username" class="text-input" placeholder="输入用户名" autocomplete="username">
+        </div>
+        <div class="auth-field">
+          <label for="auth-password">密码</label>
+          <div class="api-key-input-group">
+            <input type="password" id="auth-password" class="api-key-input" placeholder="输入密码"
+              autocomplete="current-password">
+            <button class="btn-toggle-visibility" data-target="auth-password" title="显示/隐藏">👁</button>
+          </div>
+        </div>
+        <div id="auth-error" class="auth-error"></div>
+        <button id="btn-auth-submit" class="btn-primary" style="width:100%;margin-top:4px;">登录</button>
+        <div class="auth-foot">
+          <button id="btn-auth-toggle-mode" class="auth-link">没有账号？注册</button>
+          <button id="btn-auth-webview" class="auth-link">用网页登录</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Local Config Import Preview Modal -->
   <div id="local-import-modal" class="modal hidden">
     <div class="modal-overlay" id="local-import-overlay"></div>

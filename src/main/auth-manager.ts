@@ -177,6 +177,103 @@ export class AuthManager {
     }
 
     /**
+     * In-app login with username/password — no WebView, no keychain.
+     * Posts to /api/user/login, captures the session cookie + user id from
+     * the response, then reuses fetchAccessToken to obtain the accessToken.
+     * Stores the same keys as the WebView path, so isLoggedIn / provision /
+     * account all keep working unchanged.
+     */
+    async loginWithCredentials(username: string, password: string): Promise<LoginResult> {
+        try {
+            const { json, cookies } = await this.httpPostJson('/api/user/login', { username, password });
+            if (!json?.success) {
+                return { success: false, error: json?.message || '登录失败' };
+            }
+            const userId = json?.data?.id != null ? String(json.data.id) : null;
+            if (!userId) {
+                return { success: false, error: '登录响应缺少用户 ID' };
+            }
+            const accessToken = await this.fetchAccessToken(cookies, userId);
+            this.configStore.setApiKey(ACCESS_TOKEN_KEY, accessToken);
+            this.configStore.setApiKey(USER_ID_KEY, userId);
+            return { success: true, accessToken, username: json?.data?.username || username };
+        } catch (err: any) {
+            return { success: false, error: err?.message || '登录失败' };
+        }
+    }
+
+    /**
+     * In-app registration. Posts to /api/user/register, then auto-logs-in
+     * with the same credentials on success so the user lands straight in.
+     */
+    async register(username: string, password: string): Promise<LoginResult> {
+        try {
+            const { json } = await this.httpPostJson('/api/user/register', {
+                username,
+                password,
+                password2: password,
+            });
+            if (!json?.success) {
+                return { success: false, error: json?.message || '注册失败' };
+            }
+            // Registration succeeded → log in immediately to fetch the token.
+            return this.loginWithCredentials(username, password);
+        } catch (err: any) {
+            return { success: false, error: err?.message || '注册失败' };
+        }
+    }
+
+    /**
+     * POST JSON to the router. Resolves with the parsed body and the
+     * concatenated Set-Cookie header (name=value; ...) for session reuse.
+     */
+    private httpPostJson(
+        path: string,
+        body: Record<string, any>
+    ): Promise<{ statusCode: number; json: any; cookies: string }> {
+        return new Promise((resolve, reject) => {
+            const url = new URL(`${ROUTER_BASE_URL}${path}`);
+            const payload = JSON.stringify(body);
+            const options: https.RequestOptions = {
+                hostname: url.hostname,
+                port: url.port || 443,
+                path: url.pathname,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload),
+                    'Accept': 'application/json',
+                },
+            };
+
+            const req = https.request(options, (res) => {
+                let raw = '';
+                res.on('data', (chunk) => { raw += chunk; });
+                res.on('end', () => {
+                    // Strip cookie attributes (Path, HttpOnly, ...) — keep name=value.
+                    const setCookie = res.headers['set-cookie'] || [];
+                    const cookies = setCookie
+                        .map((c) => c.split(';')[0])
+                        .join('; ');
+                    try {
+                        resolve({ statusCode: res.statusCode || 0, json: JSON.parse(raw), cookies });
+                    } catch {
+                        reject(new Error('解析响应失败'));
+                    }
+                });
+            });
+
+            req.on('error', (err) => reject(new Error(`网络请求失败: ${err.message}`)));
+            req.setTimeout(10000, () => {
+                req.destroy();
+                reject(new Error('请求超时'));
+            });
+            req.write(payload);
+            req.end();
+        });
+    }
+
+    /**
      * Get the stored accessToken.
      */
     getAccessToken(): string | null {

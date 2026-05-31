@@ -383,13 +383,14 @@ function setupWelcomeScreen() {
         await refreshToolStatus();
     });
 
-    // 两处 4Router 登录按钮都打开 WebView 登录流程
+    // 两处 4Router 登录按钮都打开应用内登录模态框
     $('#btn-login-4router')?.addEventListener('click', () => {
-        handle4RouterLogin();
+        openAuthModal();
     });
     $('#btn-login-4router-manual')?.addEventListener('click', () => {
-        handle4RouterLogin();
+        openAuthModal();
     });
+    bindAuthModal();
 }
 
 function updateSetupStatus(/** @type {string} */ provider, /** @type {boolean} */ configured) {
@@ -400,7 +401,7 @@ function updateSetupStatus(/** @type {string} */ provider, /** @type {boolean} *
     }
 }
 
-// ===== 4Router WebView Login Flow =====
+// ===== 4Router WebView Login Flow (兜底：网页登录) =====
 async function handle4RouterLogin() {
     const btn1 = /** @type {HTMLButtonElement} */ ($('#btn-login-4router'));
     const btn2 = /** @type {HTMLButtonElement} */ ($('#btn-login-4router-manual'));
@@ -423,21 +424,8 @@ async function handle4RouterLogin() {
             return;
         }
 
-        // Step 2: Login succeeded, create API Keys
-        if (btn1) btn1.textContent = '正在配置 Key...';
-        if (btn2) btn2.textContent = '正在配置 Key...';
-
-        const provisionResult = await api.provision.createKeys();
-
-        if (!provisionResult.success) {
-            alert(`Key 创建失败: ${provisionResult.error}`);
-            return;
-        }
-
-        // Step 3: Configuration complete, enter main screen
-        await api.config.set('firstLaunch', false);
-        showAppScreen();
-        await refreshToolStatus();
+        // Step 2-3: provision keys and enter the app
+        await provisionAndEnter();
 
     } catch (err) {
         alert(`操作失败: ${err}`);
@@ -445,6 +433,105 @@ async function handle4RouterLogin() {
         if (btn1) { btn1.textContent = origText1; btn1.disabled = false; }
         if (btn2) { btn2.textContent = origText2; btn2.disabled = false; }
     }
+}
+
+// Shared post-login step: create API keys, then enter the main screen.
+// Used by both the in-app modal login and the WebView fallback.
+async function provisionAndEnter() {
+    const provisionResult = await api.provision.createKeys();
+    if (!provisionResult.success) {
+        alert(`Key 创建失败: ${provisionResult.error}`);
+        return false;
+    }
+    await api.config.set('firstLaunch', false);
+    showAppScreen();
+    await refreshToolStatus();
+    return true;
+}
+
+// ===== In-app Login / Register Modal =====
+let authMode = 'login'; // 'login' | 'register'
+
+function openAuthModal() {
+    authMode = 'login';
+    applyAuthMode();
+    const err = $('#auth-error');
+    if (err) err.textContent = '';
+    $('#auth-modal')?.classList.remove('hidden');
+    /** @type {HTMLInputElement|null} */ ($('#auth-username'))?.focus();
+}
+
+function closeAuthModal() {
+    $('#auth-modal')?.classList.add('hidden');
+}
+
+function applyAuthMode() {
+    const isReg = authMode === 'register';
+    const title = $('#auth-title');
+    const submit = $('#btn-auth-submit');
+    const toggle = $('#btn-auth-toggle-mode');
+    if (title) title.textContent = isReg ? '注册 TokenWave' : '登录 TokenWave';
+    if (submit) submit.textContent = isReg ? '注册' : '登录';
+    if (toggle) toggle.textContent = isReg ? '已有账号？登录' : '没有账号？注册';
+}
+
+function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'register' : 'login';
+    const err = $('#auth-error');
+    if (err) err.textContent = '';
+    applyAuthMode();
+}
+
+async function submitAuth() {
+    const userEl = /** @type {HTMLInputElement} */ ($('#auth-username'));
+    const passEl = /** @type {HTMLInputElement} */ ($('#auth-password'));
+    const errEl = $('#auth-error');
+    const submit = /** @type {HTMLButtonElement} */ ($('#btn-auth-submit'));
+    const username = userEl?.value.trim() || '';
+    const password = passEl?.value || '';
+
+    if (errEl) errEl.textContent = '';
+    if (!username || !password) {
+        if (errEl) errEl.textContent = '请填写用户名和密码';
+        return;
+    }
+
+    const origText = submit?.textContent;
+    if (submit) { submit.textContent = '处理中…'; submit.disabled = true; }
+    try {
+        const result = authMode === 'register'
+            ? await api.auth.register(username, password)
+            : await api.auth.login(username, password);
+
+        if (!result.success) {
+            if (errEl) errEl.textContent = result.error || '操作失败';
+            return;
+        }
+        closeAuthModal();
+        await provisionAndEnter();
+    } catch (err) {
+        if (errEl) errEl.textContent = `操作失败: ${err}`;
+    } finally {
+        if (submit) { submit.textContent = origText; submit.disabled = false; }
+    }
+}
+
+function bindAuthModal() {
+    $('#btn-close-auth')?.addEventListener('click', closeAuthModal);
+    $('#auth-overlay')?.addEventListener('click', closeAuthModal);
+    $('#btn-auth-submit')?.addEventListener('click', () => { submitAuth(); });
+    $('#btn-auth-toggle-mode')?.addEventListener('click', toggleAuthMode);
+    $('#btn-auth-webview')?.addEventListener('click', () => {
+        closeAuthModal();
+        handle4RouterLogin();
+    });
+    // Enter 键在任一输入框内提交
+    $('#auth-password')?.addEventListener('keydown', (e) => {
+        if (/** @type {KeyboardEvent} */ (e).key === 'Enter') submitAuth();
+    });
+    $('#auth-username')?.addEventListener('keydown', (e) => {
+        if (/** @type {KeyboardEvent} */ (e).key === 'Enter') submitAuth();
+    });
 }
 
 // ===== Local Config Import =====

@@ -2203,3 +2203,58 @@ select.text-input {
     margin: 0;
     box-sizing: border-box;
 }
+
+/* ===== Auth (login / register) Modal ===== */
+.auth-modal-content {
+    max-width: 420px;
+}
+
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.auth-field label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.auth-field .text-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auth-error {
+    color: var(--accent-red);
+    font-size: 13px;
+    min-height: 18px;
+    margin-bottom: 8px;
+}
+
+.auth-error:empty {
+    margin-bottom: 0;
+}
+
+.auth-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+}
+
+.auth-link {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    transition: color 0.15s ease;
+}
+
+.auth-link:hover {
+    color: var(--accent-blue);
+    text-decoration: underline;
+}
