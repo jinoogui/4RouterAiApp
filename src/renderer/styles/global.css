@@ -2508,3 +2508,226 @@ select.text-input {
     color: var(--accent-blue);
     text-decoration: underline;
 }
+
+/* ===== Extensions Modal (MCP + Skills) ===== */
+.extensions-modal-content {
+    max-width: 680px;
+    width: 90vw;
+}
+
+.ext-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 12px;
+}
+
+.ext-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.ext-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ext-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 28px 0;
+}
+
+.ext-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+}
+
+.ext-row-disabled {
+    opacity: 0.55;
+}
+
+.ext-row-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.ext-row-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ext-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ext-badge {
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-default);
+}
+
+.ext-badge-claude { color: #a371f7; }
+.ext-badge-codex { color: var(--accent-green); }
+.ext-badge-raw { color: var(--text-muted); }
+
+.ext-row-sub,
+.ext-row-env {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono, monospace);
+}
+
+.ext-row-env {
+    color: var(--text-muted);
+}
+
+.ext-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* toggle switch */
+.ext-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+
+.ext-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ext-switch-slider {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    transition: 0.2s;
+}
+
+.ext-switch-slider::before {
+    content: "";
+    position: absolute;
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    top: 2px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    transition: 0.2s;
+}
+
+.ext-switch input:checked + .ext-switch-slider {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.ext-switch input:checked + .ext-switch-slider::before {
+    transform: translateX(16px);
+    background: #fff;
+}
+
+/* MCP add/edit form overlay (inside the modal body) */
+#extensions-modal .modal-body {
+    position: relative;
+}
+
+.ext-form-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-overlay);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+    z-index: 5;
+}
+
+.ext-form {
+    width: 100%;
+    max-width: 460px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ext-form h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.ext-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ext-field-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.ext-targets {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.ext-checkbox {
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ext-checkbox.ext-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ext-form-error {
+    color: var(--accent-red);
+    font-size: 12px;
+    min-height: 16px;
+}
+
+.ext-form-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}

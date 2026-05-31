@@ -204,6 +204,10 @@
           <span>🔄</span>
           <span id="update-status-text">检查更新</span>
         </button>
+        <button id="btn-extensions" class="sidebar-action-btn">
+          <span>🧩</span>
+          <span>扩展管理</span>
+        </button>
         <button id="btn-settings" class="sidebar-action-btn">
           <span>⚙️</span>
           <span>设置</span>
@@ -564,6 +568,25 @@
             <button id="btn-logs-next" class="btn-secondary btn-small">下一页</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extensions Modal: MCP servers + Skills management -->
+  <div id="extensions-modal" class="modal hidden">
+    <div class="modal-overlay" id="extensions-overlay"></div>
+    <div class="modal-content extensions-modal-content">
+      <div class="modal-header">
+        <h2>🧩 扩展管理</h2>
+        <button class="btn-icon" id="btn-close-extensions" title="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="account-tabs">
+          <button class="account-tab active" data-ext-tab="mcp">MCP 服务器</button>
+          <button class="account-tab" data-ext-tab="skills">Skills（Claude）</button>
+        </div>
+        <div class="account-panel" id="ext-panel-mcp"></div>
+        <div class="account-panel hidden" id="ext-panel-skills"></div>
       </div>
     </div>
   </div>

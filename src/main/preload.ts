@@ -122,6 +122,25 @@ contextBridge.exposeInMainWorld('routerAi', {
         pickSource: () => ipcRenderer.invoke('image:pick-source') as Promise<string | null>,
     },
 
+    // ===== MCP servers (Claude Code + Codex) =====
+    mcp: {
+        list: () => ipcRenderer.invoke('mcp:list'),
+        add: (server: any) => ipcRenderer.invoke('mcp:add', server),
+        update: (oldName: string, server: any) => ipcRenderer.invoke('mcp:update', oldName, server),
+        remove: (name: string) => ipcRenderer.invoke('mcp:remove', name),
+        toggle: (name: string, enabled: boolean) => ipcRenderer.invoke('mcp:toggle', name, enabled),
+    },
+
+    // ===== Skills (Claude Code only) =====
+    skills: {
+        list: () => ipcRenderer.invoke('skills:list'),
+        create: (name: string, description: string) => ipcRenderer.invoke('skills:create', name, description),
+        read: (name: string) => ipcRenderer.invoke('skills:read', name),
+        update: (name: string, content: string) => ipcRenderer.invoke('skills:update', name, content),
+        remove: (name: string) => ipcRenderer.invoke('skills:remove', name),
+        toggle: (name: string, enabled: boolean) => ipcRenderer.invoke('skills:toggle', name, enabled),
+    },
+
     // ===== Local Config Import =====
     localConfig: {
         scan: () => ipcRenderer.invoke('local-config:scan'),

@@ -12,6 +12,8 @@ import { LocalConfigImporter } from './local-config-importer';
 import { AccountManager } from './account-manager';
 import { SessionStore } from './session-store';
 import { ImageGenerator } from './image-generator';
+import { McpManager, McpServer } from './mcp-manager';
+import { SkillsManager } from './skills-manager';
 
 let mainWindow: BrowserWindow | null = null;
 let ptyManager: PtyManager;
@@ -24,6 +26,8 @@ let localConfigImporter: LocalConfigImporter;
 let accountManager: AccountManager;
 let sessionStore: SessionStore;
 let imageGenerator: ImageGenerator;
+let mcpManager: McpManager;
+let skillsManager: SkillsManager;
 
 function getResourcesPath(): string {
     if (app.isPackaged) {
@@ -652,6 +656,21 @@ function setupIPC(): void {
         });
         return result.canceled ? null : result.filePaths[0];
     });
+
+    // ===== MCP servers (Claude Code + Codex) =====
+    ipcMain.handle('mcp:list', () => mcpManager.list());
+    ipcMain.handle('mcp:add', (_e, server: McpServer) => mcpManager.add(server));
+    ipcMain.handle('mcp:update', (_e, oldName: string, server: McpServer) => mcpManager.update(oldName, server));
+    ipcMain.handle('mcp:remove', (_e, name: string) => mcpManager.remove(name));
+    ipcMain.handle('mcp:toggle', (_e, name: string, enabled: boolean) => mcpManager.toggle(name, enabled));
+
+    // ===== Skills (Claude Code only) =====
+    ipcMain.handle('skills:list', () => skillsManager.list());
+    ipcMain.handle('skills:create', (_e, name: string, description: string) => skillsManager.create(name, description));
+    ipcMain.handle('skills:read', (_e, name: string) => skillsManager.read(name));
+    ipcMain.handle('skills:update', (_e, name: string, content: string) => skillsManager.update(name, content));
+    ipcMain.handle('skills:remove', (_e, name: string) => skillsManager.remove(name));
+    ipcMain.handle('skills:toggle', (_e, name: string, enabled: boolean) => skillsManager.toggle(name, enabled));
 }
 
 app.whenReady().then(() => {
@@ -667,6 +686,8 @@ app.whenReady().then(() => {
     accountManager = new AccountManager();
     sessionStore = new SessionStore(toolManager);
     imageGenerator = new ImageGenerator(configStore);
+    mcpManager = new McpManager(toolManager);
+    skillsManager = new SkillsManager(toolManager);
 
     // Forward PTY data to renderer
     ptyManager.onData((sessionId: string, data: string) => {

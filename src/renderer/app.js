@@ -5,6 +5,7 @@ import '@xterm/xterm/css/xterm.css';
 import QRCode from 'qrcode';
 import { createEditor } from './editor.js';
 import { createImagePanel } from './image-gen.js';
+import { createExtensionsPanel } from './extensions.js';
 
 // ============================================================
 // 4RouterAi — Main Renderer Application
@@ -85,6 +86,7 @@ async function init() {
     setupWelcomeScreen();
     setupSidebar();
     setupSettings();
+    setupExtensions();
     setupAccount();
     setupPtyListeners();
     setupResize();
@@ -674,6 +676,7 @@ function setupSidebar() {
     $('#btn-add-cwd')?.addEventListener('click', () => addCwd());
 
     $('#btn-settings')?.addEventListener('click', () => openSettings());
+    $('#btn-extensions')?.addEventListener('click', () => openExtensions());
 
     $('#btn-history')?.addEventListener('click', () => openHistory());
     $('#btn-close-history')?.addEventListener('click', () => closeHistory());
@@ -1588,6 +1591,38 @@ function setupSettings() {
 
         closeModal();
     });
+}
+
+// ── Extensions (MCP + Skills) ──
+let extensionsPanel = null;
+const extensionsModal = /** @type {HTMLElement} */ ($('#extensions-modal'));
+
+function setupExtensions() {
+    const closeModal = () => extensionsModal.classList.add('hidden');
+    $('#btn-close-extensions')?.addEventListener('click', closeModal);
+    extensionsModal.querySelector('.modal-overlay')?.addEventListener('click', closeModal);
+
+    // Tab switch (scoped to this modal via data-ext-tab).
+    extensionsModal.querySelectorAll('[data-ext-tab]').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const which = /** @type {HTMLElement} */(tab).dataset.extTab || 'mcp';
+            extensionsModal.querySelectorAll('[data-ext-tab]').forEach((t) =>
+                t.classList.toggle('active', t === tab));
+            $('#ext-panel-mcp')?.classList.toggle('hidden', which !== 'mcp');
+            $('#ext-panel-skills')?.classList.toggle('hidden', which !== 'skills');
+        });
+    });
+
+    extensionsPanel = createExtensionsPanel(
+        { mcp: $('#ext-panel-mcp'), skills: $('#ext-panel-skills') },
+        api,
+        { toast, promptDialog, confirmDialog, openFileInEditor, closeModal },
+    );
+}
+
+function openExtensions() {
+    extensionsModal.classList.remove('hidden');
+    extensionsPanel?.refresh();
 }
 
 async function openSettings() {
