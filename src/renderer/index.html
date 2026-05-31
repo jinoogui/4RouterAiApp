@@ -168,11 +168,11 @@
       </div>
 
       <div class="sidebar-section">
-        <h4 class="sidebar-title">工作目录</h4>
-        <button id="btn-select-cwd" class="sidebar-action-btn">
-          <span>📁</span>
-          <span id="cwd-display" class="cwd-text">选择目录...</span>
-        </button>
+        <div class="sidebar-title-row">
+          <h4 class="sidebar-title">工作目录</h4>
+          <button id="btn-add-cwd" class="sidebar-icon-btn" title="添加目录">+</button>
+        </div>
+        <div id="cwd-list" class="cwd-list"></div>
         <button id="btn-history" class="sidebar-action-btn">
           <span>🕘</span>
           <span>历史会话</span>

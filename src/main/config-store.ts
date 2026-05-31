@@ -4,6 +4,7 @@ import Store from 'electron-store';
 interface ConfigSchema {
     theme: 'dark' | 'light' | 'fruit';
     defaultCwd: string;
+    workingDirectories: string[];
     proxy: string;
     encryptedKeys: Record<string, string>;
     baseUrls: Record<string, string>;
@@ -21,6 +22,7 @@ interface ConfigSchema {
 const defaults: ConfigSchema = {
     theme: 'light',
     defaultCwd: '',
+    workingDirectories: [],
     proxy: '',
     encryptedKeys: {},
     baseUrls: {},
@@ -43,6 +45,17 @@ export class ConfigStore {
             name: '4routerai-config',
             defaults,
         });
+        this.migrateWorkingDirectories();
+    }
+
+    // One-time migration: seed the new multi-dir list from the legacy single
+    // defaultCwd so existing users keep their saved directory.
+    private migrateWorkingDirectories(): void {
+        const dirs = this.store.get('workingDirectories');
+        const legacy = this.store.get('defaultCwd');
+        if ((!dirs || dirs.length === 0) && legacy) {
+            this.store.set('workingDirectories', [legacy]);
+        }
     }
 
     get(key: string): any {

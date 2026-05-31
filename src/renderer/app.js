@@ -17,6 +17,7 @@ const state = {
     tabs: /** @type {TabState[]} */ ([]),
     activeTabId: /** @type {string|null} */ (null),
     currentCwd: '',
+    workingDirs: /** @type {string[]} */ ([]),
     tabCounter: 0,
 };
 
@@ -46,7 +47,7 @@ const tabBar = /** @type {HTMLElement} */ ($('#tab-bar'));
 const tabBarEmpty = /** @type {HTMLElement} */ ($('#tab-bar-empty'));const terminalContainer = /** @type {HTMLElement} */ ($('#terminal-container'));
 const emptyState = /** @type {HTMLElement} */ ($('#empty-state'));
 const settingsModal = /** @type {HTMLElement} */ ($('#settings-modal'));
-const cwdDisplay = /** @type {HTMLElement} */ ($('#cwd-display'));
+const cwdList = /** @type {HTMLElement} */ ($('#cwd-list'));
 const fileExplorer = /** @type {HTMLElement} */ ($('#file-explorer'));
 const fileTree = /** @type {HTMLElement} */ ($('#file-tree'));
 const explorerPath = /** @type {HTMLElement} */ ($('#explorer-path'));
@@ -197,12 +198,17 @@ async function checkFirstLaunch() {
         showWelcomeScreen();
     }
 
-    // Load saved CWD
+    // Load saved working directories + active selection.
+    state.workingDirs = (await api.config.get('workingDirectories')) || [];
     const savedCwd = await api.config.get('defaultCwd');
     if (savedCwd) {
         state.currentCwd = savedCwd;
-        cwdDisplay.textContent = shortenPath(savedCwd);
+        if (!state.workingDirs.includes(savedCwd)) state.workingDirs.push(savedCwd);
+    } else if (state.workingDirs.length) {
+        state.currentCwd = state.workingDirs[0];
     }
+    renderCwdList();
+    if (state.currentCwd) loadFileTree(state.currentCwd);
 }
 
 function showWelcomeScreen() {
@@ -221,6 +227,115 @@ function shortenPath(/** @type {string} */ p) {
     const parts = p.replace(/\\/g, '/').split('/');
     if (parts.length <= 3) return p;
     return parts[0] + '/.../' + parts.slice(-2).join('/');
+}
+
+// Split a path into { parent, tail }: tail is the last segment (shown in full,
+// it's the directory name that matters), parent is everything before it (dimmed
+// + truncated). Handles both / and \ separators and trailing slashes.
+function splitPathTail(/** @type {string} */ p) {
+    const norm = (p || '').replace(/\\/g, '/').replace(/\/+$/, '');
+    const idx = norm.lastIndexOf('/');
+    if (idx < 0) return { parent: '', tail: norm };
+    return { parent: norm.slice(0, idx + 1), tail: norm.slice(idx + 1) || norm };
+}
+
+// ===== Working Directory List =====
+
+// Render the sidebar working-directory list. Each row highlights when it's the
+// current selection (.active) and shows a dot when a tab is bound to it (.bound).
+function renderCwdList() {
+    if (!cwdList) return;
+    cwdList.innerHTML = '';
+    if (state.workingDirs.length === 0) {
+        const hint = document.createElement('div');
+        hint.className = 'cwd-empty';
+        hint.textContent = '点击 + 添加目录';
+        cwdList.appendChild(hint);
+        return;
+    }
+    const boundCwds = new Set(state.tabs.map((t) => t.cwd).filter(Boolean));
+    for (const dir of state.workingDirs) {
+        const { parent, tail } = splitPathTail(dir);
+        const item = document.createElement('div');
+        item.className = 'cwd-item';
+        if (dir === state.currentCwd) item.classList.add('active');
+        if (boundCwds.has(dir)) item.classList.add('bound');
+        item.setAttribute('data-cwd', dir);
+        item.title = dir;
+        item.innerHTML =
+            `<span class="cwd-item-label">` +
+            (parent ? `<span class="cwd-item-parent">${escapeHtml(parent)}</span>` : '') +
+            `<span class="cwd-item-tail">${escapeHtml(tail)}</span>` +
+            `</span>` +
+            `<span class="cwd-item-remove" title="移除">&times;</span>`;
+        item.addEventListener('click', (e) => {
+            if (/** @type {HTMLElement} */ (e.target)?.closest('.cwd-item-remove')) {
+                removeCwd(dir);
+            } else {
+                selectCwd(dir);
+            }
+        });
+        cwdList.appendChild(item);
+    }
+}
+
+// Select a directory: make it the current cwd, load its file tree, and if a tab
+// is already bound to it, activate that tab (bidirectional highlight).
+function selectCwd(/** @type {string} */ dir) {
+    state.currentCwd = dir;
+    api.config.set('defaultCwd', dir);
+    loadFileTree(dir);
+    const bound = state.tabs.find((t) => t.cwd === dir);
+    if (bound && bound.id !== state.activeTabId) {
+        activateTab(bound.id); // activateTab re-renders the list
+    } else {
+        renderCwdList();
+    }
+    updateTabTints();
+}
+
+async function addCwd() {
+    const dir = await api.dialog.selectDirectory();
+    if (!dir) return;
+    if (!state.workingDirs.includes(dir)) {
+        state.workingDirs.push(dir);
+        await api.config.set('workingDirectories', state.workingDirs);
+    }
+    selectCwd(dir);
+}
+
+// Remove a directory from the list. If it was the current selection, fall back
+// to the active tab's cwd, then the first remaining dir, then nothing.
+async function removeCwd(/** @type {string} */ dir) {
+    state.workingDirs = state.workingDirs.filter((d) => d !== dir);
+    await api.config.set('workingDirectories', state.workingDirs);
+    if (state.currentCwd === dir) {
+        const active = state.tabs.find((t) => t.id === state.activeTabId);
+        const fallback =
+            active && state.workingDirs.includes(active.cwd)
+                ? active.cwd
+                : state.workingDirs[0] || '';
+        if (fallback) {
+            selectCwd(fallback);
+        } else {
+            state.currentCwd = '';
+            api.config.set('defaultCwd', '');
+            renderCwdList();
+            updateTabTints();
+        }
+    } else {
+        renderCwdList();
+    }
+}
+
+// Tint tabs that share the currently-selected cwd (subtle, doesn't override active).
+function updateTabTints() {
+    for (const tab of state.tabs) {
+        tab.tabElement.classList.toggle(
+            'tab--shared-cwd',
+            !!state.currentCwd && tab.cwd === state.currentCwd
+        );
+    }
 }
 
 // ===== Welcome Screen =====
@@ -466,15 +581,7 @@ function setupSidebar() {
         updateTool('codex', 'badge-codex');
     });
 
-    $('#btn-select-cwd')?.addEventListener('click', async () => {
-        const dir = await api.dialog.selectDirectory();
-        if (dir) {
-            state.currentCwd = dir;
-            cwdDisplay.textContent = shortenPath(dir);
-            await api.config.set('defaultCwd', dir);
-            loadFileTree(dir);
-        }
-    });
+    $('#btn-add-cwd')?.addEventListener('click', () => addCwd());
 
     $('#btn-settings')?.addEventListener('click', () => openSettings());
 
@@ -1187,12 +1294,16 @@ function activateTab(/** @type {string} */ tabId) {
             } else if (tab.kind === 'editor' && tab.editor) {
                 tab.editor.focus();
             }
-            // Refresh file explorer for this tab's CWD
+            // currentCwd follows the active tab so the directory list highlights
+            // whatever the focused session is bound to.
             if (tab.cwd) {
+                state.currentCwd = tab.cwd;
                 loadFileTree(tab.cwd);
             }
         }
     }
+    renderCwdList();
+    updateTabTints();
 }
 
 function closeTab(/** @type {string} */ tabId) {
@@ -1223,6 +1334,9 @@ function closeTab(/** @type {string} */ tabId) {
         const newIdx = Math.min(idx, state.tabs.length - 1);
         activateTab(state.tabs[newIdx].id);
     }
+    // Refresh the directory list so the closed tab's .bound dot clears.
+    renderCwdList();
+    updateTabTints();
 }
 
 // ===== PTY Listeners =====
