@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, ipcMain, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -221,7 +221,9 @@ function setupIPC(): void {
 
     // ===== App Info =====
     ipcMain.handle('app:get-version', () => app.getVersion());
-    ipcMain.handle('app:is-encryption-available', () => safeStorage.isEncryptionAvailable());
+    // Encryption is always available: ConfigStore uses a local Node-crypto
+    // derived key (no OS keychain), so this never prompts.
+    ipcMain.handle('app:is-encryption-available', () => true);
 
     // ===== App Update =====
     ipcMain.handle('app:check-app-update', async () => {
