@@ -1,0 +1,58 @@
+# git-cliff 配置 —— 生成面向用户的中文分组发版说明
+# 用法（CI 中）：git cliff --unreleased --tag <version> --strip header
+# 它会取「上一个 tag 到 HEAD」之间的 commit，按 Conventional Commits 类型分组。
+
+[changelog]
+# 发版说明不需要顶部大标题，留空；版本标题由 body 模板按 version 输出。
+header = ""
+# Tera 模板：按 group 分组，组内逐条列出；有 commit body 的追加缩进明细。
+body = """
+{% if version %}\
+## 🎉 {{ version }}
+{% else %}\
+## 🚧 未发布改动
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}\
+- {{ commit.message | split(pat="\n") | first | upper_first }}
+{% endfor %}\
+{% endfor %}
+
+---
+> 💡 macOS 首次打开如提示「已损坏 / 无法验证开发者」，请在「系统设置 → 隐私与安全性」中允许，或对 .app 执行 `xattr -cr /Applications/TokenWave.app`。
+"""
+# 去掉每条结尾多余空白
+trim = true
+footer = ""
+
+[git]
+# 启用 Conventional Commits 解析（feat:/fix:/...）
+conventional_commits = true
+# 不丢弃不符合规范的 commit，归到「其它」组，避免遗漏
+filter_unconventional = false
+# 拆分 body 中以 - 开头的多条目（保持原样即可）
+split_commits = false
+# 提交信息预处理：去掉结尾的 issue 引用噪声等（此处保持简单）
+commit_preprocessors = []
+# 按类型分组：注释里的 <!-- N --> 仅用于控制组的排序，不会显示
+commit_parsers = [
+    { message = "^feat", group = "<!-- 0 -->✨ 新功能" },
+    { message = "^fix", group = "<!-- 1 -->🐛 问题修复" },
+    { message = "^perf", group = "<!-- 2 -->⚡ 性能优化" },
+    { message = "^refactor", group = "<!-- 3 -->♻️ 代码重构" },
+    { message = "^style", group = "<!-- 4 -->💄 样式调整" },
+    { message = "^docs", group = "<!-- 5 -->📝 文档" },
+    { message = "^test", group = "<!-- 6 -->✅ 测试" },
+    { message = "^(build|ci)", group = "<!-- 7 -->🔧 构建与 CI" },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^chore|^misc", group = "<!-- 8 -->🧹 杂项" },
+    { message = "^revert", group = "<!-- 9 -->⏪ 回滚" },
+    { message = ".*", group = "<!-- 10 -->📦 其它" },
+]
+# 按时间正序还是倒序（最新在上）
+sort_commits = "newest"
+# 过滤掉合并提交
+filter_commits = false
+# tag 模式：匹配 v1.2.3 形式
+tag_pattern = "v[0-9].*"

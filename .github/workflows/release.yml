@@ -110,6 +110,12 @@ jobs:
     if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # git-cliff 需要完整历史 + 所有 tag 才能界定「上个版本到现在」的提交范围
+          fetch-depth: 0
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -119,10 +125,21 @@ jobs:
       - name: List collected files
         run: ls -laR dist-artifacts
 
+      - name: Generate changelog (git-cliff)
+        id: changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          # 新 tag 尚未创建，本次提交属于 unreleased；用 --tag 把它们归到新版本号下
+          args: --unreleased --tag ${{ needs.check.outputs.tag }} --strip header
+        env:
+          OUTPUT: CHANGELOG_RELEASE.md
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.check.outputs.tag }}
           name: ${{ needs.check.outputs.tag }}
-          generate_release_notes: true
+          body_path: ${{ steps.changelog.outputs.changelog }}
           files: dist-artifacts/**/*
