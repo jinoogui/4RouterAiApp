@@ -109,6 +109,19 @@ contextBridge.exposeInMainWorld('routerAi', {
         createKeys: () => ipcRenderer.invoke('provision:create-keys'),
     },
 
+    // ===== Image Generation =====
+    image: {
+        generate: (opts: { prompt: string; model: string; size?: string; n?: number; quality?: string }) =>
+            ipcRenderer.invoke('image:generate', opts) as Promise<{ success: boolean; images?: string[]; paths?: (string | null)[]; error?: string }>,
+        edit: (opts: { prompt: string; model: string; size?: string; n?: number; imagePath: string }) =>
+            ipcRenderer.invoke('image:edit', opts) as Promise<{ success: boolean; images?: string[]; paths?: (string | null)[]; error?: string }>,
+        history: () =>
+            ipcRenderer.invoke('image:history') as Promise<{ success: boolean; items: { path: string; url: string; mtime: number }[]; error?: string }>,
+        reveal: (filePath: string) =>
+            ipcRenderer.invoke('image:reveal', filePath) as Promise<{ success: boolean; error?: string }>,
+        pickSource: () => ipcRenderer.invoke('image:pick-source') as Promise<string | null>,
+    },
+
     // ===== Local Config Import =====
     localConfig: {
         scan: () => ipcRenderer.invoke('local-config:scan'),

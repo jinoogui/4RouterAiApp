@@ -1047,6 +1047,256 @@ body.platform-darwin .titlebar-drag {
     outline: none;
 }
 
+/* ===== Image Generation Panel ===== */
+/* Image tabs reuse the absolute-fill layout, but scroll their own content. */
+.image-wrapper {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+}
+
+.image-wrapper.hidden {
+    display: none;
+}
+
+.image-panel {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px 28px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.image-mode-row {
+    display: flex;
+    gap: 8px;
+}
+
+.image-mode-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.image-mode-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-accent);
+}
+
+.image-mode-btn.active {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+}
+
+.image-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+
+.image-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.image-field > label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.image-field-grow {
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
+.image-textarea {
+    width: 100%;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+
+.image-textarea:focus {
+    outline: none;
+    border-color: var(--border-accent);
+}
+
+.image-opts-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+/* Each control keeps a stable width so wrapped rows line up tidily. */
+.image-opts-row .image-field {
+    flex: 0 0 auto;
+    width: 130px;
+}
+
+/* The model selector spans the full width on its own line. */
+.image-opts-row .image-field-grow {
+    flex: 1 1 100%;
+    width: auto;
+}
+
+.text-input.small {
+    width: 100%;
+    max-width: 130px;
+}
+
+.image-source-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.image-source-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border-default);
+}
+
+.image-source-name {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.image-submit {
+    align-self: flex-start;
+    min-width: 120px;
+}
+
+.image-error {
+    display: none;
+    color: var(--accent-red);
+    font-size: 13px;
+}
+
+.image-error.visible {
+    display: block;
+}
+
+.image-results-empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 32px 0;
+}
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.image-card {
+    position: relative;
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-tertiary);
+}
+
+.image-card-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: zoom-in;
+}
+
+.image-card-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-overlay);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.image-card:hover .image-card-bar {
+    opacity: 1;
+}
+
+.image-card-btn {
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.image-card-btn:hover:not(:disabled) {
+    border-color: var(--border-accent);
+    color: var(--text-link);
+}
+
+.image-card-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Full-resolution preview overlay. */
+.image-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background: rgba(0, 0, 0, 0.82);
+    cursor: zoom-out;
+}
+
+.image-lightbox.hidden {
+    display: none;
+}
+
+.image-lightbox-img {
+    max-width: 95vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
 /* Editor tab title + unsaved (dirty) indicator. */
 .tab .tab-title {
     max-width: 160px;

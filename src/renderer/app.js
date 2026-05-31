@@ -4,6 +4,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import QRCode from 'qrcode';
 import { createEditor } from './editor.js';
+import { createImagePanel } from './image-gen.js';
 
 // ============================================================
 // 4RouterAi — Main Renderer Application
@@ -24,7 +25,7 @@ const state = {
 /**
  * @typedef {Object} TabState
  * @property {string} id
- * @property {'terminal'|'editor'} kind
+ * @property {'terminal'|'editor'|'image'} kind
  * @property {string} toolId
  * @property {string} toolName
  * @property {string} toolIcon
@@ -32,6 +33,7 @@ const state = {
  * @property {Terminal} [terminal]
  * @property {FitAddon} [fitAddon]
  * @property {import('@codemirror/view').EditorView} [editor]
+ * @property {{ destroy: () => void }} [panel]
  * @property {string} [filePath]
  * @property {boolean} [dirty]
  * @property {HTMLElement} wrapper
@@ -657,6 +659,7 @@ function setupSidebar() {
     $('#btn-launch-claude')?.addEventListener('click', () => launchTool('claude-code'));
     $('#btn-launch-codex')?.addEventListener('click', () => launchTool('codex'));
     $('#btn-launch-terminal')?.addEventListener('click', () => launchTerminal());
+    $('#btn-launch-image')?.addEventListener('click', () => openImageTab());
 
     // Update tool buttons
     document.getElementById('badge-claude')?.addEventListener('click', (e) => {
@@ -1368,6 +1371,59 @@ async function saveEditorTab(/** @type {TabState} */ tabState) {
     }
 }
 
+// Open (or focus) the standalone image-generation tab. Only one is allowed —
+// reusing it avoids stacking duplicate panels.
+function openImageTab() {
+    const existing = state.tabs.find(t => t.kind === 'image');
+    if (existing) {
+        activateTab(existing.id);
+        return;
+    }
+
+    const tabId = `tab-${++state.tabCounter}`;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'image-wrapper';
+    wrapper.id = `image-${tabId}`;
+    terminalContainer.appendChild(wrapper);
+
+    const tabEl = document.createElement('div');
+    tabEl.className = 'tab';
+    tabEl.setAttribute('data-tab-id', tabId);
+    tabEl.innerHTML = `
+    <span>🎨</span>
+    <span class="tab-title">生图</span>
+    <span class="tab-close" title="关闭">&times;</span>
+  `;
+    tabEl.addEventListener('click', (e) => {
+        if (/** @type {HTMLElement} */(e.target)?.closest('.tab-close')) {
+            closeTab(tabId);
+        } else {
+            activateTab(tabId);
+        }
+    });
+    tabBar.appendChild(tabEl);
+
+    const panel = createImagePanel(wrapper, api, { onToast: toast });
+
+    const tabState = {
+        id: tabId,
+        kind: /** @type {'image'} */ ('image'),
+        toolId: 'image',
+        toolName: '生图',
+        toolIcon: '🎨',
+        wrapper,
+        tabElement: tabEl,
+        panel,
+        cwd: state.currentCwd || '',
+    };
+
+    state.tabs.push(tabState);
+    activateTab(tabId);
+    tabBarEmpty.classList.add('hidden');
+    emptyState.classList.add('hidden');
+}
+
 function activateTab(/** @type {string} */ tabId) {
     state.activeTabId = tabId;
 
@@ -1404,6 +1460,8 @@ function closeTab(/** @type {string} */ tabId) {
             return;
         }
         tab.editor?.destroy();
+    } else if (tab.kind === 'image') {
+        tab.panel?.destroy?.();
     } else {
         if (tab.sessionId) api.pty.destroy(tab.sessionId);
         tab.terminal?.dispose();

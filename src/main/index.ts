@@ -11,6 +11,7 @@ import { KeyProvisioner } from './key-provisioner';
 import { LocalConfigImporter } from './local-config-importer';
 import { AccountManager } from './account-manager';
 import { SessionStore } from './session-store';
+import { ImageGenerator } from './image-generator';
 
 let mainWindow: BrowserWindow | null = null;
 let ptyManager: PtyManager;
@@ -22,6 +23,7 @@ let keyProvisioner: KeyProvisioner;
 let localConfigImporter: LocalConfigImporter;
 let accountManager: AccountManager;
 let sessionStore: SessionStore;
+let imageGenerator: ImageGenerator;
 
 function getResourcesPath(): string {
     if (app.isPackaged) {
@@ -552,6 +554,104 @@ function setupIPC(): void {
             return { success: false, error: err?.message || String(err) };
         }
     });
+
+    // ===== Image Generation =====
+    // Text-to-image and image-to-image via the OpenAI-compatible gateway,
+    // reusing the provisioned `openai` key. The key never leaves the main
+    // process. opts: { prompt, model, size?, n?, quality?, imagePath? }.
+    //
+    // Generated images are auto-persisted to generated_images so they survive
+    // restarts; the renderer loads them back as a gallery via image:history.
+
+    // Write one base64 data URL into generated_images, return its file path.
+    // Path is derived server-side so writes stay confined to that folder.
+    const persistImageDataUrl = (dataUrl: string): string | null => {
+        const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(dataUrl || '');
+        if (!m) return null;
+        const ext = (m[1].split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '') || 'png';
+        const buf = Buffer.from(m[2], 'base64');
+        const cwd = (configStore.get('defaultCwd') as string) || '';
+        const dir = toolManager.getGeneratedImagesDir(cwd || null);
+        fs.mkdirSync(dir, { recursive: true });
+        const filename = `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const filePath = path.join(dir, filename);
+        fs.writeFileSync(filePath, buf);
+        return filePath;
+    };
+
+    // Auto-save every freshly generated image, attaching its on-disk path so
+    // the renderer can reveal it. A write failure must not drop the image.
+    const persistResult = (result: any) => {
+        if (!result?.success || !Array.isArray(result.images)) return result;
+        result.paths = result.images.map((dataUrl: string) => {
+            try {
+                return persistImageDataUrl(dataUrl);
+            } catch {
+                return null;
+            }
+        });
+        return result;
+    };
+
+    ipcMain.handle('image:generate', async (_event, opts: any) => {
+        const key = configStore.getApiKey('openai');
+        if (!key) return { success: false, error: '未配置生图 API Key，请先登录 TokenWave 或在设置中填写 OpenAI Key' };
+        return persistResult(await imageGenerator.generate(key, opts || {}));
+    });
+
+    ipcMain.handle('image:edit', async (_event, opts: any) => {
+        const key = configStore.getApiKey('openai');
+        if (!key) return { success: false, error: '未配置生图 API Key，请先登录 TokenWave 或在设置中填写 OpenAI Key' };
+        return persistResult(await imageGenerator.edit(key, opts || {}));
+    });
+
+    // Load previously generated images (newest first) as a gallery. Returns
+    // file:// URLs the renderer can render directly under the relaxed CSP.
+    ipcMain.handle('image:history', async () => {
+        try {
+            const cwd = (configStore.get('defaultCwd') as string) || '';
+            const dir = toolManager.getGeneratedImagesDir(cwd || null);
+            if (!fs.existsSync(dir)) return { success: true, items: [] };
+            const exts = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+            const items = fs.readdirSync(dir)
+                .filter((f) => exts.has(path.extname(f).toLowerCase()))
+                .map((f) => {
+                    const full = path.join(dir, f);
+                    return { path: full, url: 'file://' + full, mtime: fs.statSync(full).mtimeMs };
+                })
+                .sort((a, b) => b.mtime - a.mtime);
+            return { success: true, items };
+        } catch (err: any) {
+            return { success: false, error: err?.message || '读取历史失败', items: [] };
+        }
+    });
+
+    // Reveal a single generated image in the OS file manager.
+    ipcMain.handle('image:reveal', async (_event, filePath: string) => {
+        try {
+            const cwd = (configStore.get('defaultCwd') as string) || '';
+            const dir = toolManager.getGeneratedImagesDir(cwd || null);
+            // Only reveal paths inside the managed folder.
+            if (!filePath || !path.resolve(filePath).startsWith(path.resolve(dir))) {
+                return { success: false, error: '路径不在生成目录内' };
+            }
+            shell.showItemInFolder(filePath);
+            return { success: true };
+        } catch (err: any) {
+            return { success: false, error: err?.message || '打开失败' };
+        }
+    });
+
+    // Let the user pick a local source image for image-to-image. Returns the
+    // chosen path, or null when canceled.
+    ipcMain.handle('image:pick-source', async () => {
+        const { dialog } = require('electron');
+        const result = await dialog.showOpenDialog(mainWindow!, {
+            properties: ['openFile'],
+            filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+        });
+        return result.canceled ? null : result.filePaths[0];
+    });
 }
 
 app.whenReady().then(() => {
@@ -566,6 +666,7 @@ app.whenReady().then(() => {
     localConfigImporter = new LocalConfigImporter(configStore, toolManager.getAppDataDir());
     accountManager = new AccountManager();
     sessionStore = new SessionStore(toolManager);
+    imageGenerator = new ImageGenerator(configStore);
 
     // Forward PTY data to renderer
     ptyManager.onData((sessionId: string, data: string) => {
