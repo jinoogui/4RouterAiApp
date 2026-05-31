@@ -141,7 +141,14 @@ function bundleMinGit() {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $headers = @{ 'User-Agent' = '4RouterAi-Bundler' }
-$release = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest'
+# 在 CI 中带上 GITHUB_TOKEN，把未认证的 60 次/小时限额提升到 5000 次/小时，
+# 避免共享 runner IP 撞 GitHub API 限流（本地无 token 时退化为匿名请求，行为不变）。
+# 仅查询 API 时带 token；资产下载会 302 跳到 CDN，带 Authorization 反而可能在跨域重定向时出错，故下载仍用纯 $headers。
+$apiHeaders = $headers.Clone()
+$ghToken = $env:GITHUB_TOKEN
+if (-not $ghToken) { $ghToken = $env:GH_TOKEN }
+if ($ghToken) { $apiHeaders['Authorization'] = "Bearer $ghToken" }
+$release = Invoke-RestMethod -Headers $apiHeaders -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest'
 $asset = $release.assets | Where-Object { $_.name -match '${assetPattern}' } | Select-Object -First 1
 if (-not $asset) { throw 'MinGit asset not found for current architecture' }
 try {
