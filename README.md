@@ -63,6 +63,17 @@
 - **内置 MinGit** — Claude Code 运行所需的 Git 环境自动配置（Windows）
 - **自动检测更新** — 启动时非阻塞检查 CLI 工具新版本，一键更新
 
+### 🎨 AI 生图
+- **文生图 + 图生图** — 输入描述直接生成图片，或上传一张图做编辑/重绘
+- **双引擎** — OpenAI 兼容生图（`gpt-image-2`）与 Google `gemini-3.1-flash-image`，模型可下拉预设或自定义；按模型自动切换对应参数
+- **丰富参数** — gpt-image 支持尺寸 / 清晰度 / 数量 / 透明背景 / 输出格式 / 压缩率 / 审核宽松度；Gemini 支持宽高比 / 分辨率（1K/2K/4K）
+- **生成即存** — 自动落盘到 `generated_images` 并以画廊展示历史，重启不丢；支持点击放大预览、一键在文件夹中显示或复制
+
+### 🧩 扩展管理（MCP & Skills）
+- **MCP 服务器** — 在应用内为 **Claude Code 和 Codex** 增删改 MCP 服务器，支持 stdio（本地命令）与 http（远程，仅 Claude）；可逐项启用/禁用，配置自动写入对应 CLI 的配置目录，下次启动该工具时生效
+- **Claude Skills** — 创建、编辑（复用内置编辑器打开 `SKILL.md`）、删除、启用/禁用 Claude Code 技能
+- **密钥安全** — MCP 的 env / headers 中的敏感值在列表中打码显示，仅保存在本地隔离目录
+
 ---
 
 ## 📥 安装
@@ -131,6 +142,25 @@
 
 > ⚠️ 充值框中填写的是**充值数量**（quota 数量），不是金额。实付金额按各支付渠道的倍率换算，面板会实时预览。
 
+### 6. 生成图片
+
+点击侧栏的 🎨 **生图** 按钮打开生图标签页：
+
+1. 选择**文生图**或**图生图**（图生图需先选一张本地源图）。
+2. 选择模型（`gpt-image-2` 或 `gemini-3.1-flash-image`，也可自定义），按需调整尺寸/清晰度、或宽高比/分辨率等参数。
+3. 点击「生成」。生成的图片会自动保存到工作目录的 `generated_images` 文件夹，并在下方画廊展示。点击图片可放大预览，悬停可「在文件夹中显示」或「复制」。
+
+> 💡 透明背景需配合 PNG / WebP 格式；不同模型支持的尺寸与参数不同，以实际模型为准。
+
+### 7. 管理 MCP 与 Skills
+
+点击侧栏底部的 🧩 **扩展管理** 按钮：
+
+- **MCP 服务器** — 新增时填写名称、类型（stdio / http）、命令或 URL、env/headers，并勾选要配置到的 CLI（Claude Code / Codex）。保存后写入对应工具的配置目录，**下次启动该工具时生效**。
+- **Skills** — 仅对 Claude Code 生效。新增后会自动打开 `SKILL.md` 供你编辑；可随时启用/禁用或删除。
+
+> ⚠️ MCP / Skills 的改动需要重新启动对应的工具会话才会被加载。
+
 ---
 
 ## ⚙️ 设置
@@ -189,6 +219,9 @@ TokenWave/
 │   │   ├── auth-manager.ts         # TokenWave 账户登录
 │   │   ├── key-provisioner.ts      # 一键开通 Claude / Codex 密钥
 │   │   ├── account-manager.ts      # 余额、充值、使用记录
+│   │   ├── image-generator.ts      # AI 生图（OpenAI 兼容 + Gemini 双引擎）
+│   │   ├── mcp-manager.ts          # MCP 服务器管理（Claude .mcp.json / Codex config.toml）
+│   │   ├── skills-manager.ts       # Claude Skills 管理（SKILL.md 增删改）
 │   │   ├── local-config-importer.ts# 导入本机 ~/.claude、~/.codex 配置
 │   │   ├── app-updater.ts          # 应用自更新与远程配置同步
 │   │   ├── preload.ts              # IPC 桥接，暴露安全 API 给渲染进程
@@ -197,6 +230,8 @@ TokenWave/
 │       ├── index.html              # 主页面
 │       ├── app.js                  # 应用逻辑
 │       ├── editor.js               # CodeMirror 文件编辑器封装
+│       ├── image-gen.js            # 生图面板 UI
+│       ├── extensions.js           # 扩展管理面板（MCP & Skills）UI
 │       └── styles/global.css       # 全局样式
 ├── scripts/
 │   ├── bundle-tools.mjs            # 打包工具脚本（下载 CLI 和运行时）
