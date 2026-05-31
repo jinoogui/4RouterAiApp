@@ -71,7 +71,9 @@
 
 ### 🧩 扩展管理（MCP & Skills）
 - **MCP 服务器** — 在应用内为 **Claude Code 和 Codex** 增删改 MCP 服务器，支持 stdio（本地命令）与 http（远程，仅 Claude）；可逐项启用/禁用，配置自动写入对应 CLI 的配置目录，下次启动该工具时生效
+- **MCP 市场搜索** — 内置搜索 [官方 MCP Registry](https://registry.modelcontextprotocol.io)，一键安装（自动解析为 `npx` 命令或远程地址）；也可手动粘贴 npm 包名安装
 - **Claude Skills** — 创建、编辑（复用内置编辑器打开 `SKILL.md`）、删除、启用/禁用 Claude Code 技能
+- **Skills 市场下载** — 从策展 GitHub 仓库（默认 [anthropics/skills](https://github.com/anthropics/skills)，可自定义）浏览并一键下载安装，也支持粘贴任意 GitHub skill 目录地址安装
 - **密钥安全** — MCP 的 env / headers 中的敏感值在列表中打码显示，仅保存在本地隔离目录
 
 ---
@@ -156,10 +158,11 @@
 
 点击侧栏底部的 🧩 **扩展管理** 按钮：
 
-- **MCP 服务器** — 新增时填写名称、类型（stdio / http）、命令或 URL、env/headers，并勾选要配置到的 CLI（Claude Code / Codex）。保存后写入对应工具的配置目录，**下次启动该工具时生效**。
-- **Skills** — 仅对 Claude Code 生效。新增后会自动打开 `SKILL.md` 供你编辑；可随时启用/禁用或删除。
+- **MCP 服务器** — 新增时填写名称、类型（stdio / http）、命令或 URL、env/headers，并勾选要配置到的 CLI（Claude Code / Codex）。保存后写入对应工具的配置目录，**下次启动该工具时生效**。点「🔍 搜索市场」可从官方 MCP Registry 搜索安装，或直接粘贴 npm 包名安装。
+- **Skills** — 仅对 Claude Code 生效。可手动新增（自动打开 `SKILL.md` 供编辑），或点「🔍 浏览市场」从 GitHub 仓库下载安装、粘贴 skill 目录地址安装；随时启用/禁用或删除。
 
 > ⚠️ MCP / Skills 的改动需要重新启动对应的工具会话才会被加载。
+> 安装同名扩展时会先确认是否覆盖；Skills 市场默认仓库可在市场界面临时切换。
 
 ---
 
@@ -222,6 +225,7 @@ TokenWave/
 │   │   ├── image-generator.ts      # AI 生图（OpenAI 兼容 + Gemini 双引擎）
 │   │   ├── mcp-manager.ts          # MCP 服务器管理（Claude .mcp.json / Codex config.toml）
 │   │   ├── skills-manager.ts       # Claude Skills 管理（SKILL.md 增删改）
+│   │   ├── registry-client.ts      # MCP/Skills 市场搜索与下载（Registry + GitHub）
 │   │   ├── local-config-importer.ts# 导入本机 ~/.claude、~/.codex 配置
 │   │   ├── app-updater.ts          # 应用自更新与远程配置同步
 │   │   ├── preload.ts              # IPC 桥接，暴露安全 API 给渲染进程
